@@ -50,7 +50,16 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
     onSuccess: () => {
       toast.success("Médico deletado com sucesso.");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro:", error);
+
+      // Verifica se há um erro do servidor
+      if (error.error?.serverError) {
+        toast.error(error.error.serverError);
+        return;
+      }
+
+      // Mensagem genérica se nenhum erro específico for encontrado
       toast.error("Erro ao deletar médico.");
     },
   });
@@ -110,12 +119,13 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
               availableToTime: availability.to.format("HH:mm:ss"),
             }}
             onSuccess={() => setIsUpsertDoctorDialogOpen(false)}
+            isOpen={isUpsertDoctorDialogOpen}
           />
         </Dialog>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" className="w-full">
-              <TrashIcon />
+              <TrashIcon className="mr-2 h-4 w-4" />
               Deletar médico
             </Button>
           </AlertDialogTrigger>

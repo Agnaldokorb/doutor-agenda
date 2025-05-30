@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "next-safe-action/hooks";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
@@ -68,11 +69,16 @@ const formSchema = z
   );
 
 interface UpsertDoctorFormProps {
+  isOpen?: boolean;
   doctor?: typeof doctorsTable.$inferSelect;
   onSuccess?: () => void;
 }
 
-const UpsertDoctorForm = ({ doctor, onSuccess }: UpsertDoctorFormProps) => {
+const UpsertDoctorForm = ({
+  doctor,
+  onSuccess,
+  isOpen,
+}: UpsertDoctorFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     shouldUnregister: true,
     resolver: zodResolver(formSchema),
@@ -88,12 +94,59 @@ const UpsertDoctorForm = ({ doctor, onSuccess }: UpsertDoctorFormProps) => {
       availableToTime: doctor?.availableToTime ?? "",
     },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: doctor?.name ?? "",
+        specialty: doctor?.specialty ?? "",
+        appointmentPrice: doctor?.appointmentPriceInCents
+          ? doctor.appointmentPriceInCents / 100
+          : 0,
+        availableFromWeekDay: doctor?.availableFromWeekDay?.toString() ?? "1",
+        availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
+        availableFromTime: doctor?.availableFromTime ?? "",
+        availableToTime: doctor?.availableToTime ?? "",
+      });
+    }
+  }, [isOpen, doctor, form]);
+
   const upsertDoctorAction = useAction(upsertDoctor, {
     onSuccess: () => {
       toast.success("Médico adicionado com sucesso.");
       onSuccess?.();
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro:", error);
+
+      // Verifica se há um erro do servidor
+      if (error.error?.serverError) {
+        toast.error(error.error.serverError);
+        return;
+      }
+
+      // Verifica se há erros de validação
+      if (error.error?.validationErrors) {
+        const validationErrors = error.error.validationErrors;
+
+        // Pega o primeiro erro de validação disponível
+        const firstError =
+          validationErrors._errors?.[0] ||
+          validationErrors.name?._errors?.[0] ||
+          validationErrors.specialty?._errors?.[0] ||
+          validationErrors.appointmentPriceInCents?._errors?.[0] ||
+          validationErrors.availableFromWeekDay?._errors?.[0] ||
+          validationErrors.availableToWeekDay?._errors?.[0] ||
+          validationErrors.availableFromTime?._errors?.[0] ||
+          validationErrors.availableToTime?._errors?.[0];
+
+        if (firstError) {
+          toast.error(firstError);
+          return;
+        }
+      }
+
+      // Mensagem genérica se nenhum erro específico for encontrado
       toast.error("Erro ao adicionar médico.");
     },
   });
