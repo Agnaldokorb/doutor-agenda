@@ -100,7 +100,19 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar>
-                    <AvatarFallback>F</AvatarFallback>
+                    {session.data?.user?.image ? (
+                      <Image
+                        src={session.data.user.image}
+                        alt={session.data?.user?.name || "Avatar do usuário"}
+                        width={50}
+                        height={50}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        {session.data?.user?.name?.[0] || "U"}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div>
                     <p className="text-sm">

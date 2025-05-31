@@ -8,6 +8,20 @@
       "when": 1748643946480,
       "tag": "0000_cold_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1748660627854,
+      "tag": "0001_safe_robin_chapel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748706641847,
+      "tag": "0002_sour_strong_guy",
+      "breakpoints": true
     }
   ]
 }

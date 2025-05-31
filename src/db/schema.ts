@@ -135,6 +135,7 @@ export const doctorsTableRelations = relations(
       references: [clinicsTable.id],
     }),
     appointments: many(appointmentsTable),
+    availableTimeSlots: many(availableTimeSlotsTable),
   }),
 );
 
@@ -166,6 +167,13 @@ export const patientsTableRelations = relations(
   }),
 );
 
+export const appointmentStatusEnum = pgEnum("appointment_status", [
+  "agendado",
+  "confirmado",
+  "cancelado",
+  "concluido",
+]);
+
 export const appointmentsTable = pgTable("appointments", {
   id: uuid("id").defaultRandom().primaryKey(),
   date: timestamp("date").notNull(),
@@ -178,6 +186,7 @@ export const appointmentsTable = pgTable("appointments", {
   doctorId: uuid("doctor_id")
     .notNull()
     .references(() => doctorsTable.id, { onDelete: "cascade" }),
+  status: appointmentStatusEnum("status").default("agendado").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -197,6 +206,33 @@ export const appointmentsTableRelations = relations(
     }),
     doctor: one(doctorsTable, {
       fields: [appointmentsTable.doctorId],
+      references: [doctorsTable.id],
+    }),
+  }),
+);
+
+// Nova tabela para gerenciar horários disponíveis dos médicos
+export const availableTimeSlotsTable = pgTable("available_time_slots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  doctorId: uuid("doctor_id")
+    .notNull()
+    .references(() => doctorsTable.id, { onDelete: "cascade" }),
+  dayOfWeek: integer("day_of_week").notNull(), // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  slotDurationMinutes: integer("slot_duration_minutes").notNull().default(30),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Relações para a tabela de horários disponíveis
+export const availableTimeSlotsTableRelations = relations(
+  availableTimeSlotsTable,
+  ({ one }) => ({
+    doctor: one(doctorsTable, {
+      fields: [availableTimeSlotsTable.doctorId],
       references: [doctorsTable.id],
     }),
   }),

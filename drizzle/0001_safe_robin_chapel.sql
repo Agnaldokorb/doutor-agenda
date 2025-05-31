@@ -1,0 +1,2 @@
+CREATE TYPE "public"."appointment_status" AS ENUM('agendado', 'confirmado', 'cancelado', 'concluido');--> statement-breakpoint
+ALTER TABLE "appointments" ADD COLUMN "status" "appointment_status" DEFAULT 'agendado' NOT NULL;
