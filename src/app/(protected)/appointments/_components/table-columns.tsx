@@ -150,7 +150,7 @@ export function AppointmentsTable({
   ];
 
   return (
-    <div className="w-full overflow-x-auto rounded-md bg-white shadow">
+    <div className="w-full max-w-full overflow-x-auto rounded-md bg-white shadow">
       <DataTable data={data} columns={columns} />
     </div>
   );

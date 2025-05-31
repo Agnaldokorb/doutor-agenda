@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ilike } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -17,9 +17,14 @@ import { patientsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import AddPatientButton from "./_components/add-patient-button";
+import { SearchInput } from "@/components/ui/search-input";
 import { patientsTableColumns } from "./_components/table-columns";
 
-const PatientsPage = async () => {
+interface PatientsPageProps {
+  searchParams: { q?: string };
+}
+
+const PatientsPage = async ({ searchParams }: PatientsPageProps) => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -30,8 +35,16 @@ const PatientsPage = async () => {
     redirect("/clinic-form");
   }
 
+  const searchQuery = searchParams.q?.trim();
+
+  const whereConditions = [eq(patientsTable.clinicId, session.user.clinic.id)];
+
+  if (searchQuery) {
+    whereConditions.push(ilike(patientsTable.name, `%${searchQuery}%`));
+  }
+
   const patients = await db.query.patientsTable.findMany({
-    where: eq(patientsTable.clinicId, session.user.clinic.id),
+    where: and(...whereConditions),
   });
 
   return (
@@ -44,11 +57,12 @@ const PatientsPage = async () => {
           </PageDescription>
         </PageHeaderContent>
         <PageActions>
+          <SearchInput placeholder="Buscar paciente..." className="mr-2 w-64" />
           <AddPatientButton />
         </PageActions>
       </PageHeader>
       <PageContent>
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-hidden">
           <DataTable data={patients} columns={patientsTableColumns} />
         </div>
       </PageContent>

@@ -132,7 +132,7 @@ export const patientsTableColumns: ColumnDef<Patient>[] = [
     accessorKey: "name",
     header: "Nome",
     cell: ({ row }) => (
-      <div className="max-w-[300px]">{row.getValue("name")}</div>
+      <div className="max-w-[400px] truncate">{row.getValue("name")}</div>
     ),
   },
   {
@@ -140,7 +140,7 @@ export const patientsTableColumns: ColumnDef<Patient>[] = [
     accessorKey: "email",
     header: "E-mail",
     cell: ({ row }) => (
-      <div className="max-w-[250px]">{row.getValue("email")}</div>
+      <div className="max-w-[400px] truncate">{row.getValue("email")}</div>
     ),
   },
   {
@@ -160,19 +160,19 @@ export const patientsTableColumns: ColumnDef<Patient>[] = [
         const firstPart = phoneNumber.substring(2, 7);
         const secondPart = phoneNumber.substring(7);
         return (
-          <div className="max-w-[150px]">{`(${ddd}) ${firstPart}-${secondPart}`}</div>
+          <div className="max-w-[200px]">{`(${ddd}) ${firstPart}-${secondPart}`}</div>
         );
       } else if (phoneNumber.length === 10) {
         // Formato: (00) 0000-0000
         const firstPart = phoneNumber.substring(2, 6);
         const secondPart = phoneNumber.substring(6);
         return (
-          <div className="max-w-[150px]">{`(${ddd}) ${firstPart}-${secondPart}`}</div>
+          <div className="max-w-[200px]">{`(${ddd}) ${firstPart}-${secondPart}`}</div>
         );
       }
 
       // Se não for em nenhum dos formatos esperados, retorna sem formatação
-      return <div className="max-w-[150px]">{phoneNumber}</div>;
+      return <div className="max-w-[200px]">{phoneNumber}</div>;
     },
   },
   {

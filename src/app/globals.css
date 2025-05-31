@@ -116,7 +116,42 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html,
+  body {
+    @apply h-full w-full overflow-x-hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #__next,
+  main {
+    @apply flex h-full min-h-0 w-full flex-grow flex-col;
+  }
+
+  /* Responsividade para dispositivos móveis */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+
+    .container {
+      @apply px-4;
+    }
+  }
+
+  /* Ajustes para tabelas em telas pequenas */
+  @media (max-width: 768px) {
+    table {
+      @apply w-full;
+    }
+
+    .data-table-container {
+      @apply w-full overflow-x-auto;
+    }
   }
 }

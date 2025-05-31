@@ -1,8 +1,8 @@
 "use server";
 
+import { sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
