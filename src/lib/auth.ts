@@ -27,11 +27,18 @@ export const auth = betterAuth({
           clinic: true,
         },
       });
+      
+      // Buscar informações completas do usuário incluindo o tipo
+      const fullUser = await db.query.usersTable.findFirst({
+        where: eq(schema.usersTable.id, user.id),
+      });
+      
       // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
       const clinic = clinics?.[0];
       return {
         user: {
           ...user,
+          userType: fullUser?.userType || "admin",
           clinic: clinic?.clinicId
             ? {
                 id: clinic?.clinicId,

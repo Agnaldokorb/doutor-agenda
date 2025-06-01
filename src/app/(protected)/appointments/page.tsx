@@ -1,4 +1,4 @@
-import { and, eq, or, ilike } from "drizzle-orm";
+import { and, eq, ilike,or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -20,7 +20,7 @@ import AddAppointmentButton from "./_components/add-appointment-button";
 import { AppointmentsTable } from "./_components/table-columns";
 
 interface AppointmentsPageProps {
-  searchParams: { q?: string };
+  searchParams: Promise<{ q?: string }>;
 }
 
 const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
@@ -34,7 +34,9 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
     redirect("/clinic-form");
   }
 
-  const searchQuery = searchParams.q?.trim();
+  // Aguardar os searchParams antes de usá-los
+  const { q } = await searchParams;
+  const searchQuery = q?.trim() || "";
 
   const patients = await db.query.patientsTable.findMany({
     where: eq(patientsTable.clinicId, session.user.clinic.id),

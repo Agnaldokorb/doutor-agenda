@@ -1,20 +1,21 @@
 "use client";
 
+import "dayjs/locale/pt-br";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import dayjs from "dayjs";
+import timezonePlugin from "dayjs/plugin/timezone";
+import utcPlugin from "dayjs/plugin/utc";
+import { and, eq, sql } from "drizzle-orm";
 import { CalendarIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo,useState } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
 import { z } from "zod";
-import dayjs from "dayjs";
-import utcPlugin from "dayjs/plugin/utc";
-import timezonePlugin from "dayjs/plugin/timezone";
-import "dayjs/locale/pt-br";
-import { eq, and, sql } from "drizzle-orm";
 
 import { upsertAppointment } from "@/actions/upsert-appointment";
 import { Button } from "@/components/ui/button";
@@ -47,10 +48,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { doctorsTable, patientsTable, appointmentsTable } from "@/db/schema";
-import { cn } from "@/lib/utils";
-import { Appointment } from ".//table-columns";
 import { db } from "@/db";
+import { appointmentsTable,doctorsTable, patientsTable } from "@/db/schema";
+import { cn } from "@/lib/utils";
+
+import { Appointment } from ".//table-columns";
 
 // Estender dayjs com os plugins necessários
 dayjs.extend(utcPlugin);

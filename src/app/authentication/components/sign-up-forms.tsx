@@ -3,10 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAction } from "next-safe-action/hooks";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { createAdminUser } from "@/actions/create-admin-user";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +22,6 @@ import { FormControl, FormMessage } from "@/components/ui/form";
 import { FormItem, FormLabel } from "@/components/ui/form";
 import { Form, FormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
 
 const registerSchema = z.object({
   name: z.string().trim().min(1, { message: "Nome é obrigatório" }),
@@ -33,6 +34,10 @@ const registerSchema = z.object({
     .string()
     .trim()
     .min(8, { message: "A senha deve ter pelo menos 8 caracteres" }),
+  clinicName: z
+    .string()
+    .trim()
+    .min(1, { message: "Nome da clínica é obrigatório" }),
 });
 
 const SignUpForm = () => {
@@ -43,29 +48,29 @@ const SignUpForm = () => {
       name: "",
       email: "",
       password: "",
+      clinicName: "",
+    },
+  });
+
+  const createAdminUserAction = useAction(createAdminUser, {
+    onSuccess: () => {
+      toast.success("Conta criada com sucesso!");
+      router.push("/");
+    },
+    onError: (error) => {
+      console.error("Erro:", error);
+
+      if (error.error?.serverError) {
+        toast.error(error.error.serverError);
+        return;
+      }
+
+      toast.error("Erro ao criar conta.");
     },
   });
 
   async function onSubmit(values: z.infer<typeof registerSchema>) {
-    await authClient.signUp.email(
-      {
-        email: values.email,
-        password: values.password,
-        name: values.name,
-      },
-      {
-        onSuccess: () => {
-          router.push("/dashboard");
-        },
-        onError: (ctx) => {
-          if (ctx.error.code === "USER_ALREADY_EXISTS") {
-            toast.error("E-mail já cadastrado.");
-            return;
-          }
-          toast.error("Erro ao criar conta.");
-        },
-      },
-    );
+    createAdminUserAction.execute(values);
   }
 
   return (
@@ -74,7 +79,9 @@ const SignUpForm = () => {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <CardHeader>
             <CardTitle>Criar conta</CardTitle>
-            <CardDescription>Crie uma conta para continuar.</CardDescription>
+            <CardDescription>
+              Crie uma conta de administrador para sua clínica.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormField
@@ -120,14 +127,30 @@ const SignUpForm = () => {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="clinicName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome da Clínica</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Digite o nome da sua clínica"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
           <CardFooter>
             <Button
               type="submit"
               className="w-full"
-              disabled={form.formState.isSubmitting}
+              disabled={createAdminUserAction.isExecuting}
             >
-              {form.formState.isSubmitting ? (
+              {createAdminUserAction.isExecuting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Criar conta"

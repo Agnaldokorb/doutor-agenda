@@ -20,7 +20,7 @@ import AddDoctorButton from "./_components/add-doctor-button";
 import DoctorCard from "./_components/doctor-card";
 
 interface DoctorsPageProps {
-  searchParams: { q?: string };
+  searchParams: Promise<{ q?: string }>;
 }
 
 const DoctorsPage = async ({ searchParams }: DoctorsPageProps) => {
@@ -34,7 +34,8 @@ const DoctorsPage = async ({ searchParams }: DoctorsPageProps) => {
     redirect("/clinic-form");
   }
 
-  const searchQuery = searchParams.q?.trim();
+  const { q } = await searchParams;
+  const searchQuery = q?.trim() || "";
 
   const whereConditions = [eq(doctorsTable.clinicId, session.user.clinic.id)];
 

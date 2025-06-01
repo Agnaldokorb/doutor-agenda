@@ -35,7 +35,7 @@ export function SearchInput({
       const newSearchParams = new URLSearchParams(searchParams.toString());
 
       Object.entries(params).forEach(([name, value]) => {
-        if (value === null) {
+        if (value === null || value === "") {
           newSearchParams.delete(name);
         } else {
           newSearchParams.set(name, value);
@@ -49,12 +49,14 @@ export function SearchInput({
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (searchTerm) {
-        router.push(
-          `${pathname}?${createQueryString({ [paramName]: searchTerm })}`,
-        );
+      const queryString = createQueryString({
+        [paramName]: searchTerm || null,
+      });
+
+      if (queryString) {
+        router.push(`${pathname}?${queryString}`);
       } else {
-        router.push(`${pathname}?${createQueryString({ [paramName]: null })}`);
+        router.push(pathname);
       }
     }, debounceTime);
 

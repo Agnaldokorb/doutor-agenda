@@ -4,6 +4,7 @@ import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 
 import { deleteAppointment } from "@/actions/delete-appointment";
+import { Button } from "@/components/ui/button";
 import {
   DialogContent,
   DialogDescription,
@@ -11,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+
 import { Appointment } from "./table-columns";
 
 interface DeleteAppointmentDialogProps {

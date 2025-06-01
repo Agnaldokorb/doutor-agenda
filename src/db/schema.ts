@@ -10,12 +10,19 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const userTypeEnum = pgEnum("user_type", [
+  "admin",
+  "doctor",
+  "atendente",
+]);
+
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull(),
   image: text("image"),
+  userType: userTypeEnum("user_type").notNull().default("admin"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -105,6 +112,7 @@ export const clinicsTableRelations = relations(clinicsTable, ({ many }) => ({
   patients: many(patientsTable),
   appointments: many(appointmentsTable),
   usersToClinics: many(usersToClinicsTable),
+  medicalRecords: many(medicalRecordsTable),
 }));
 
 export const doctorsTable = pgTable("doctors", {
@@ -112,7 +120,11 @@ export const doctorsTable = pgTable("doctors", {
   clinicId: uuid("clinic_id")
     .notNull()
     .references(() => clinicsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  email: text("email").notNull(),
   avatarImageUrl: text("avatar_image_url"),
   // 1 - Monday, 2 - Tuesday, 3 - Wednesday, 4 - Thursday, 5 - Friday, 6 - Saturday, 0 - Sunday
   availableFromWeekDay: integer("available_from_week_day").notNull(),
@@ -134,8 +146,13 @@ export const doctorsTableRelations = relations(
       fields: [doctorsTable.clinicId],
       references: [clinicsTable.id],
     }),
+    user: one(usersTable, {
+      fields: [doctorsTable.userId],
+      references: [usersTable.id],
+    }),
     appointments: many(appointmentsTable),
     availableTimeSlots: many(availableTimeSlotsTable),
+    medicalRecords: many(medicalRecordsTable),
   }),
 );
 
@@ -164,6 +181,7 @@ export const patientsTableRelations = relations(
       references: [clinicsTable.id],
     }),
     appointments: many(appointmentsTable),
+    medicalRecords: many(medicalRecordsTable),
   }),
 );
 
@@ -195,7 +213,7 @@ export const appointmentsTable = pgTable("appointments", {
 
 export const appointmentsTableRelations = relations(
   appointmentsTable,
-  ({ one }) => ({
+  ({ one, many }) => ({
     clinic: one(clinicsTable, {
       fields: [appointmentsTable.clinicId],
       references: [clinicsTable.id],
@@ -208,6 +226,7 @@ export const appointmentsTableRelations = relations(
       fields: [appointmentsTable.doctorId],
       references: [doctorsTable.id],
     }),
+    medicalRecords: many(medicalRecordsTable),
   }),
 );
 
@@ -234,6 +253,57 @@ export const availableTimeSlotsTableRelations = relations(
     doctor: one(doctorsTable, {
       fields: [availableTimeSlotsTable.doctorId],
       references: [doctorsTable.id],
+    }),
+  }),
+);
+
+// Nova tabela para prontuários médicos
+export const medicalRecordsTable = pgTable("medical_records", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patientsTable.id, { onDelete: "cascade" }),
+  clinicId: uuid("clinic_id")
+    .notNull()
+    .references(() => clinicsTable.id, { onDelete: "cascade" }),
+  doctorId: uuid("doctor_id")
+    .notNull()
+    .references(() => doctorsTable.id, { onDelete: "cascade" }),
+  appointmentId: uuid("appointment_id").references(() => appointmentsTable.id, {
+    onDelete: "set null",
+  }),
+  symptoms: text("symptoms").notNull(),
+  diagnosis: text("diagnosis").notNull(),
+  treatment: text("treatment").notNull(),
+  medication: text("medication").notNull(),
+  medicalCertificate: boolean("medical_certificate").notNull().default(false),
+  certificateDays: integer("certificate_days"),
+  observations: text("observations"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Relações para a tabela de prontuários
+export const medicalRecordsTableRelations = relations(
+  medicalRecordsTable,
+  ({ one }) => ({
+    patient: one(patientsTable, {
+      fields: [medicalRecordsTable.patientId],
+      references: [patientsTable.id],
+    }),
+    clinic: one(clinicsTable, {
+      fields: [medicalRecordsTable.clinicId],
+      references: [clinicsTable.id],
+    }),
+    doctor: one(doctorsTable, {
+      fields: [medicalRecordsTable.doctorId],
+      references: [doctorsTable.id],
+    }),
+    appointment: one(appointmentsTable, {
+      fields: [medicalRecordsTable.appointmentId],
+      references: [appointmentsTable.id],
     }),
   }),
 );

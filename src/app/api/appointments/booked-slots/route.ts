@@ -1,6 +1,6 @@
-import { eq, and, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { and, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log("API - Iniciando busca de horários ocupados");
 
-    // Verificar autenticação usando headers()
+    // Verificar autenticação usando headers() aguardado
     const session = await auth.api.getSession({
-      headers: headers(),
+      headers: await headers(),
     });
 
     console.log("API - Status da sessão:", !!session?.user);
@@ -54,24 +54,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Buscar agendamentos existentes para o médico na data selecionada usando SQL bruto
-      // para maior compatibilidade e evitar problemas de conversão de data
-      const bookedAppointments = await db.execute(sql`
-        SELECT * FROM ${appointmentsTable}
-        WHERE 
-          ${appointmentsTable.doctorId} = ${doctorId}
-          AND ${appointmentsTable.clinicId} = ${session.user.clinic.id}
-          AND DATE(${appointmentsTable.date}) = ${dateStr}
-          AND ${appointmentsTable.status} != 'cancelado'
-      `);
+      // Corrigindo a consulta SQL para usar a API do Drizzle corretamente
+      const bookedAppointments = await db
+        .select()
+        .from(appointmentsTable)
+        .where(
+          and(
+            eq(appointmentsTable.doctorId, doctorId),
+            eq(appointmentsTable.clinicId, session.user.clinic.id),
+            sql`DATE(${appointmentsTable.date}) = ${dateStr}`,
+            sql`${appointmentsTable.status} != 'cancelado'`,
+          ),
+        );
 
-      console.log(
-        "API - Agendamentos encontrados:",
-        bookedAppointments.rows.length,
-      );
+      console.log("API - Agendamentos encontrados:", bookedAppointments.length);
 
       // Extrair os horários ocupados
-      const bookedSlots = bookedAppointments.rows.map((appointment: any) => {
+      const bookedSlots = bookedAppointments.map((appointment) => {
         const appointmentDate = new Date(appointment.date);
         const hours = appointmentDate.getHours().toString().padStart(2, "0");
         const minutes = appointmentDate

@@ -12,7 +12,7 @@ const AuthenticationPage = async () => {
     headers: await headers(),
   });
   if (session?.user) {
-    redirect("/dashboard");
+    redirect("/");
   }
   return (
     <div className="flex h-screen w-screen items-center justify-center">

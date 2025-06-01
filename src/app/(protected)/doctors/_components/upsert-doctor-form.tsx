@@ -42,6 +42,9 @@ const formSchema = z
     name: z.string().trim().min(1, {
       message: "Nome é obrigatório.",
     }),
+    email: z.string().trim().email({
+      message: "E-mail inválido.",
+    }),
     specialty: z.string().trim().min(1, {
       message: "Especialidade é obrigatória.",
     }),
@@ -84,6 +87,7 @@ const UpsertDoctorForm = ({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: doctor?.name ?? "",
+      email: doctor?.email ?? "",
       specialty: doctor?.specialty ?? "",
       appointmentPrice: doctor?.appointmentPriceInCents
         ? doctor.appointmentPriceInCents / 100
@@ -99,6 +103,7 @@ const UpsertDoctorForm = ({
     if (isOpen) {
       form.reset({
         name: doctor?.name ?? "",
+        email: doctor?.email ?? "",
         specialty: doctor?.specialty ?? "",
         appointmentPrice: doctor?.appointmentPriceInCents
           ? doctor.appointmentPriceInCents / 100
@@ -133,6 +138,7 @@ const UpsertDoctorForm = ({
         const firstError =
           validationErrors._errors?.[0] ||
           validationErrors.name?._errors?.[0] ||
+          validationErrors.email?._errors?.[0] ||
           validationErrors.specialty?._errors?.[0] ||
           validationErrors.appointmentPriceInCents?._errors?.[0] ||
           validationErrors.availableFromWeekDay?._errors?.[0] ||
@@ -179,6 +185,19 @@ const UpsertDoctorForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Nome</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>E-mail</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>

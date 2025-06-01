@@ -1,8 +1,24 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { auth } from "@/lib/auth";
 
 import { AppSidebar } from "./_components/app-sidebar";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+interface ProtectedLayoutProps {
+  children: React.ReactNode;
+}
+
+const ProtectedLayout = async ({ children }: ProtectedLayoutProps) => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.user) {
+    redirect("/authentication");
+  }
+
   return (
     <SidebarProvider>
       <div className="flex h-full w-full">
@@ -16,4 +32,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
     </SidebarProvider>
   );
-}
+};
+
+export default ProtectedLayout;

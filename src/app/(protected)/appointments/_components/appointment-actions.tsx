@@ -21,10 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { doctorsTable, patientsTable } from "@/db/schema";
-import { Appointment } from "./table-columns";
-import UpsertAppointmentForm from "./upsert-appointment-form";
-import UpdateAppointmentStatusForm from "./update-appointment-status-form";
+
 import DeleteAppointmentDialog from "./delete-appointment-dialog";
+import { Appointment } from "./table-columns";
+import UpdateAppointmentStatusForm from "./update-appointment-status-form";
+import UpsertAppointmentForm from "./upsert-appointment-form";
 
 interface AppointmentActionsProps {
   appointment: Appointment;

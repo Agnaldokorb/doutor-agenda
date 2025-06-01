@@ -12,16 +12,16 @@ import {
   PageHeaderContent,
   PageTitle,
 } from "@/components/ui/page-container";
+import { SearchInput } from "@/components/ui/search-input";
 import { db } from "@/db";
 import { patientsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import AddPatientButton from "./_components/add-patient-button";
-import { SearchInput } from "@/components/ui/search-input";
 import { patientsTableColumns } from "./_components/table-columns";
 
 interface PatientsPageProps {
-  searchParams: { q?: string };
+  searchParams: Promise<{ q?: string }>;
 }
 
 const PatientsPage = async ({ searchParams }: PatientsPageProps) => {
@@ -35,7 +35,8 @@ const PatientsPage = async ({ searchParams }: PatientsPageProps) => {
     redirect("/clinic-form");
   }
 
-  const searchQuery = searchParams.q?.trim();
+  const { q } = await searchParams;
+  const searchQuery = q?.trim() || "";
 
   const whereConditions = [eq(patientsTable.clinicId, session.user.clinic.id)];
 

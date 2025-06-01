@@ -1,6 +1,7 @@
 "use client";
 
 import { useAction } from "next-safe-action/hooks";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { updateAppointmentStatus } from "@/actions/update-appointment-status";
@@ -20,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+
 import { Appointment } from "./table-columns";
 
 interface UpdateAppointmentStatusFormProps {

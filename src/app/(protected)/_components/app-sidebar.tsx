@@ -4,6 +4,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   LogOut,
+  SettingsIcon,
   Stethoscope,
   UsersRound,
 } from "lucide-react";
@@ -32,33 +33,49 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
-const items = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Agendamentos",
-    url: "/appointments",
-    icon: CalendarDays,
-  },
-  {
-    title: "Médicos",
-    url: "/doctors",
-    icon: Stethoscope,
-  },
-  {
-    title: "Pacientes",
-    url: "/patients",
-    icon: UsersRound,
-  },
-];
-
 export function AppSidebar() {
   const router = useRouter();
   const session = authClient.useSession();
   const pathname = usePathname();
+
+  // Itens base disponíveis para todos os usuários autenticados
+  const baseItems = [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Agendamentos",
+      url: "/appointments",
+      icon: CalendarDays,
+    },
+    {
+      title: "Médicos",
+      url: "/doctors",
+      icon: Stethoscope,
+    },
+    {
+      title: "Pacientes",
+      url: "/patients",
+      icon: UsersRound,
+    },
+  ];
+
+  // Itens administrativos disponíveis apenas para admins
+  const adminItems = [
+    {
+      title: "Configurações",
+      url: "/configurations",
+      icon: SettingsIcon,
+    },
+  ];
+
+  // Combinar itens baseado no tipo de usuário
+  const items =
+    session.data?.user?.userType === "admin"
+      ? [...baseItems, ...adminItems]
+      : baseItems;
 
   const handleSignOut = async () => {
     await authClient.signOut({
