@@ -24,6 +24,12 @@ export const usersTable = pgTable("users", {
   image: text("image"),
   userType: userTypeEnum("user_type").notNull().default("admin"),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  // Campos LGPD
+  privacyPolicyAccepted: boolean("privacy_policy_accepted")
+    .notNull()
+    .default(false),
+  privacyPolicyAcceptedAt: timestamp("privacy_policy_accepted_at"),
+  privacyPolicyVersion: text("privacy_policy_version").default("1.0"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { clinicsTable,usersTable, usersToClinicsTable } from "@/db/schema";
+import { clinicsTable, usersTable, usersToClinicsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -24,6 +24,9 @@ const createAdminUserSchema = z.object({
     .string()
     .trim()
     .min(1, { message: "Nome da clínica é obrigatório" }),
+  privacyPolicyAccepted: z.boolean().refine((val) => val === true, {
+    message: "Você deve aceitar a Política de Privacidade para continuar",
+  }),
 });
 
 export const createAdminUser = actionClient
@@ -49,13 +52,18 @@ export const createAdminUser = actionClient
 
       console.log(`✅ Usuário criado no BetterAuth: ${userResponse.user.id}`);
 
-      // 2. Atualizar o tipo do usuário para admin (já é o padrão, mas garantindo)
+      // 2. Atualizar o tipo do usuário para admin e salvar aceite da política LGPD
       await db
         .update(usersTable)
-        .set({ userType: "admin" })
+        .set({
+          userType: "admin",
+          privacyPolicyAccepted: parsedInput.privacyPolicyAccepted,
+          privacyPolicyAcceptedAt: new Date(),
+          privacyPolicyVersion: "1.0",
+        })
         .where(eq(usersTable.id, userResponse.user.id));
 
-      console.log(`✅ Tipo do usuário definido como admin`);
+      console.log(`✅ Tipo do usuário definido como admin e política aceita`);
 
       // 3. Criar a clínica
       const clinicResult = await db
