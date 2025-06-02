@@ -56,6 +56,19 @@ const createUserFormSchema = z.object({
   availableToTime: z.string().optional(),
 });
 
+interface CreateUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  userType: "admin" | "doctor" | "atendente";
+  specialty?: string;
+  appointmentPriceInCents?: number;
+  availableFromWeekDay?: number;
+  availableToWeekDay?: number;
+  availableFromTime?: string;
+  availableToTime?: string;
+}
+
 interface CreateUserFormProps {
   onSuccess?: () => void;
 }
@@ -78,9 +91,9 @@ const CreateUserForm = ({ onSuccess }: CreateUserFormProps) => {
   });
 
   const createUserAction = useAction(createUser, {
-    onSuccess: (data) => {
+    onSuccess: ({ data }) => {
       console.log("✅ Usuário criado:", data);
-      toast.success(data.message);
+      toast.success(data?.message || "Usuário criado com sucesso!");
       form.reset();
       onSuccess?.();
     },
@@ -93,7 +106,7 @@ const CreateUserForm = ({ onSuccess }: CreateUserFormProps) => {
   const watchUserType = form.watch("userType");
 
   const onSubmit = async (values: z.infer<typeof createUserFormSchema>) => {
-    const payload: any = {
+    const payload: CreateUserPayload = {
       name: values.name,
       email: values.email,
       password: values.password,
@@ -126,6 +139,12 @@ const CreateUserForm = ({ onSuccess }: CreateUserFormProps) => {
     { value: "5", label: "Sexta" },
     { value: "6", label: "Sábado" },
   ];
+
+  const userTypeOptions = [
+    { value: "admin", label: "Administrador" },
+    { value: "doctor", label: "Médico" },
+    { value: "atendente", label: "Atendente" },
+  ] as const;
 
   return (
     <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -206,9 +225,11 @@ const CreateUserForm = ({ onSuccess }: CreateUserFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="atendente">Atendente</SelectItem>
-                      <SelectItem value="doctor">Médico</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
+                      {userTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

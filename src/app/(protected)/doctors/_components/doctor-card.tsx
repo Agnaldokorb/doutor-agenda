@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +79,12 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Avatar className="h-10 w-10">
+            {doctor.avatarImageUrl && (
+              <AvatarImage
+                src={doctor.avatarImageUrl}
+                alt={`Foto de ${doctor.name}`}
+              />
+            )}
             <AvatarFallback>{doctorInitials}</AvatarFallback>
           </Avatar>
           <div>

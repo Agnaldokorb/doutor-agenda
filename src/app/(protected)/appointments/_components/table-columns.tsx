@@ -8,6 +8,7 @@ import { AppointmentStatus } from "@/actions/update-appointment-status/types";
 import { DataTable } from "@/components/ui/data-table";
 import { appointmentsTable, doctorsTable, patientsTable } from "@/db/schema";
 import { formatCurrencyInCents } from "@/helpers/currency";
+import { convertUTCToUTCMinus3 } from "@/helpers/timezone";
 
 import { AppointmentActions } from "./appointment-actions";
 
@@ -76,10 +77,12 @@ export function AppointmentsTable({
       header: "DATA",
       cell: ({ row }) => {
         const appointment = row.original;
-        // Formatação apenas da data e hora, sem o "às"
+        // Converter UTC para UTC-3 para exibição
+        const utcDate = new Date(appointment.date);
+        const localDate = convertUTCToUTCMinus3(utcDate);
         return (
           <div className="whitespace-nowrap">
-            {format(new Date(appointment.date), "dd/MM/yy, HH:mm")}
+            {format(localDate, "dd/MM/yy, HH:mm")}
           </div>
         );
       },

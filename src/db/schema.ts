@@ -74,6 +74,25 @@ export const verificationsTable = pgTable("verifications", {
 export const clinicsTable = pgTable("clinics", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
+  logoUrl: text("logo_url"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  cnpj: text("cnpj"),
+  description: text("description"),
+  website: text("website"),
+  // Horários de funcionamento (JSON)
+  businessHours: text("business_hours"), // Armazenará JSON com horários
+  // Configurações
+  appointmentDurationMinutes: integer("appointment_duration_minutes").default(
+    30,
+  ),
+  allowOnlineBooking: boolean("allow_online_booking").default(true),
+  requireEmailConfirmation: boolean("require_email_confirmation").default(true),
+  autoConfirmAppointments: boolean("auto_confirm_appointments").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -165,6 +184,7 @@ export const patientsTable = pgTable("patients", {
     .references(() => clinicsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  avatarImageUrl: text("avatar_image_url"),
   phone_number: text("phone_number").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   sex: patientSexEnum("sex").notNull(),

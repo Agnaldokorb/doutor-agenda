@@ -6,12 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import dayjs from "dayjs";
-import timezonePlugin from "dayjs/plugin/timezone";
-import utcPlugin from "dayjs/plugin/utc";
-import { and, eq, sql } from "drizzle-orm";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { CalendarIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect, useMemo,useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
@@ -48,15 +47,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { db } from "@/db";
-import { appointmentsTable,doctorsTable, patientsTable } from "@/db/schema";
+import { doctorsTable, patientsTable } from "@/db/schema";
 import { cn } from "@/lib/utils";
 
 import { Appointment } from ".//table-columns";
 
 // Estender dayjs com os plugins necessários
-dayjs.extend(utcPlugin);
-dayjs.extend(timezonePlugin);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.locale("pt-br");
 
 const formSchema = z.object({
@@ -96,11 +94,14 @@ const UpsertAppointmentForm = ({
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
-  // Extrair o horário da data do agendamento se existir
+  // Extrair o horário da data do agendamento se existir (convertendo UTC para UTC-3)
   const getTimeFromDate = (date?: Date): string => {
     if (!date) return "";
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
+    // Converter UTC para UTC-3 para exibição no formulário
+    const utcDate = new Date(date);
+    const localDate = new Date(utcDate.getTime() - 3 * 60 * 60 * 1000);
+    const hours = localDate.getUTCHours().toString().padStart(2, "0");
+    const minutes = localDate.getUTCMinutes().toString().padStart(2, "0");
     return `${hours}:${minutes}:00`;
   };
 
@@ -188,18 +189,21 @@ const UpsertAppointmentForm = ({
   }, [watchDoctorId, watchDate]);
 
   // Função para verificar se um horário está ocupado
-  const isTimeSlotBooked = (timeSlot: string) => {
-    // Se for o horário do agendamento atual (em caso de edição), não considerar como ocupado
-    if (
-      appointment &&
-      appointment.doctorId === watchDoctorId &&
-      getTimeFromDate(new Date(appointment.date)) === timeSlot
-    ) {
-      return false;
-    }
+  const isTimeSlotBooked = useCallback(
+    (timeSlot: string) => {
+      // Se for o horário do agendamento atual (em caso de edição), não considerar como ocupado
+      if (
+        appointment &&
+        appointment.doctorId === watchDoctorId &&
+        getTimeFromDate(new Date(appointment.date)) === timeSlot
+      ) {
+        return false;
+      }
 
-    return bookedSlots.includes(timeSlot);
-  };
+      return bookedSlots.includes(timeSlot);
+    },
+    [appointment, watchDoctorId, bookedSlots],
+  );
 
   // Gera os horários disponíveis com base no médico selecionado
   const availableTimeSlots = useMemo(() => {
@@ -237,10 +241,7 @@ const UpsertAppointmentForm = ({
         console.error("Valores de hora inválidos:", fromTimeStr, toTimeStr);
         return [];
       }
-
-      // Criar horários usando objetos Date em vez de dayjs.utc()
-      const today = new Date();
-
+      
       // Criar horário de início
       const startTime = new Date();
       startTime.setHours(fromHour, fromMinute, 0, 0);
@@ -283,13 +284,7 @@ const UpsertAppointmentForm = ({
       console.error("Erro ao processar horários:", error);
       return [];
     }
-  }, [
-    selectedDoctor,
-    bookedSlots,
-    appointment,
-    watchDoctorId,
-    isTimeSlotBooked,
-  ]);
+  }, [selectedDoctor, isTimeSlotBooked]);
 
   // Função para verificar se uma data é válida com base na disponibilidade do médico
   const isDateAvailable = (date: Date): boolean => {
@@ -331,7 +326,7 @@ const UpsertAppointmentForm = ({
     }
 
     // Limpar a data e o horário quando o médico mudar
-    form.setValue("date", undefined);
+    form.resetField("date");
     form.setValue("timeSlot", "");
   }, [watchDoctorId, doctors, form]);
 
@@ -405,13 +400,20 @@ const UpsertAppointmentForm = ({
     console.log("Valores do formulário:", values);
 
     // Criar a data completa combinando a data e o horário selecionado
-    const appointmentDate = values.date;
+    const appointmentDate = new Date(values.date);
     const [hours, minutes] = values.timeSlot.split(":").map(Number);
 
+    // Definir o horário local (UTC-3) - a action irá converter para UTC
     appointmentDate.setHours(hours, minutes, 0, 0);
+
+    console.log(
+      "Data/hora local (UTC-3) para enviar:",
+      appointmentDate.toISOString(),
+    );
 
     upsertAppointmentAction.execute({
       ...values,
+      date: appointmentDate,
       id: appointment?.id, // Passa o ID se estiver editando
     });
   };

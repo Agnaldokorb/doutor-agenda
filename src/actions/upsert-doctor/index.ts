@@ -7,9 +7,10 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { doctorsTable, usersTable,usersToClinicsTable } from "@/db/schema";
+import { doctorsTable, usersTable, usersToClinicsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
+import { deleteFileByUrl } from "@/lib/utapi";
 
 import { upsertDoctorSchema } from "./schema";
 
@@ -43,6 +44,7 @@ export const upsertDoctor = actionClient
     }
 
     let userId: string;
+    let oldAvatarUrl: string | null = null;
 
     // Se for criação de novo médico (não tem ID)
     if (!parsedInput.id) {
@@ -103,6 +105,9 @@ export const upsertDoctor = actionClient
       if (!existingDoctor) {
         throw new Error("Médico não encontrado");
       }
+
+      // Armazenar URL da imagem antiga para possível exclusão
+      oldAvatarUrl = existingDoctor.avatarImageUrl;
 
       if (existingDoctor.userId) {
         // Se já tem usuário, atualiza
@@ -173,6 +178,26 @@ export const upsertDoctor = actionClient
             `Falha ao criar usuário para médico existente: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           );
         }
+      }
+    }
+
+    // Verificar se deve excluir imagem antiga
+    if (
+      oldAvatarUrl &&
+      parsedInput.avatarImageUrl &&
+      oldAvatarUrl !== parsedInput.avatarImageUrl
+    ) {
+      console.log(`🗑️ Excluindo imagem antiga: ${oldAvatarUrl}`);
+      try {
+        const deleted = await deleteFileByUrl(oldAvatarUrl);
+        if (deleted) {
+          console.log(`✅ Imagem antiga excluída com sucesso`);
+        } else {
+          console.log(`⚠️ Não foi possível excluir a imagem antiga`);
+        }
+      } catch (error) {
+        console.error("❌ Erro ao excluir imagem antiga:", error);
+        // Não falha a operação por causa disso
       }
     }
 

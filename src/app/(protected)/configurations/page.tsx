@@ -1,18 +1,13 @@
 "use client";
 
 import {
-  BuildingIcon,
-  SettingsIcon,
-  UsersIcon,
-  ShieldIcon,
-  DatabaseIcon,
-  BellIcon,
-  MailIcon,
-  PaletteIcon,
-  FileTextIcon,
-  CreditCardIcon,
-  LockIcon,
   AlertTriangleIcon,
+  BuildingIcon,
+  DatabaseIcon,
+  LockIcon,
+  SettingsIcon,
+  ShieldIcon,
+  UsersIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -30,11 +25,12 @@ import { PageContainer } from "@/components/ui/page-container";
 import { authClient } from "@/lib/auth-client";
 
 import { ClinicConfigurationCard } from "./_components/clinic-configuration-card";
+import { DatabaseBackupCard } from "./_components/database-backup-card";
+import { NotificationConfigurationCard } from "./_components/notification-configuration-card";
+import { SecurityConfigurationCard } from "./_components/security-configuration-card";
 import { SystemConfigurationCard } from "./_components/system-configuration-card";
 import { UserManagementCard } from "./_components/user-management-card";
-import { SecurityConfigurationCard } from "./_components/security-configuration-card";
-import { NotificationConfigurationCard } from "./_components/notification-configuration-card";
-import { DatabaseBackupCard } from "./_components/database-backup-card";
+import { UserProfileCard } from "./_components/user-profile-card";
 
 const ConfigurationsPage = () => {
   const router = useRouter();
@@ -43,19 +39,23 @@ const ConfigurationsPage = () => {
   // Verificar se o usuário está logado e é administrador
   useEffect(() => {
     if (session.data && session.data.user?.userType !== "admin") {
-      toast.error("Acesso negado. Apenas administradores podem acessar esta página.");
+      toast.error(
+        "Acesso negado. Apenas administradores podem acessar esta página.",
+      );
       router.push("/dashboard");
     }
   }, [session.data, router]);
 
   // Loading state
-  if (session.isLoading) {
+  if (session.isPending) {
     return (
       <PageContainer>
         <div className="flex h-96 items-center justify-center">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-3 border-blue-600"></div>
-            <p className="mt-4 text-lg text-gray-600">Carregando configurações...</p>
+            <p className="mt-4 text-lg text-gray-600">
+              Carregando configurações...
+            </p>
           </div>
         </div>
       </PageContainer>
@@ -69,7 +69,9 @@ const ConfigurationsPage = () => {
         <div className="flex h-96 items-center justify-center">
           <div className="text-center">
             <AlertTriangleIcon className="mx-auto h-16 w-16 text-red-500" />
-            <h2 className="mt-4 text-2xl font-bold text-gray-900">Acesso Negado</h2>
+            <h2 className="mt-4 text-2xl font-bold text-gray-900">
+              Acesso Negado
+            </h2>
             <p className="mt-2 text-gray-600">
               Apenas administradores podem acessar esta página.
             </p>
@@ -87,7 +89,9 @@ const ConfigurationsPage = () => {
           <div className="relative z-10">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Configurações Administrativas</h1>
+                <h1 className="text-3xl font-bold">
+                  Configurações Administrativas
+                </h1>
                 <p className="mt-2 text-purple-100">
                   Gerencie todas as configurações do sistema e da clínica
                 </p>
@@ -111,7 +115,10 @@ const ConfigurationsPage = () => {
         </div>
 
         {/* Configuration Categories */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid gap-8">
+          {/* Perfil do Usuário */}
+          <UserProfileCard />
+
           {/* Configurações da Clínica */}
           <ClinicConfigurationCard />
 
@@ -179,4 +186,4 @@ const ConfigurationsPage = () => {
   );
 };
 
-export default ConfigurationsPage; 
+export default ConfigurationsPage;

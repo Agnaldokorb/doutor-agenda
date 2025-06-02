@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ProfileImageUploader } from "@/components/ui/profile-image-uploader";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ const formSchema = z.object({
   email: z.string().trim().email({
     message: "E-mail inválido.",
   }),
+  avatarImageUrl: z.string().optional(),
   phone_number: z.string().trim().min(10, {
     message: "Número de telefone deve ter pelo menos 10 dígitos.",
   }),
@@ -59,12 +61,17 @@ const UpsertPatientForm = ({
   onSuccess,
   isOpen,
 }: UpsertPatientFormProps) => {
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
+    patient?.avatarImageUrl || undefined,
+  );
+
   const form = useForm<z.infer<typeof formSchema>>({
     shouldUnregister: true,
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: patient?.name ?? "",
       email: patient?.email ?? "",
+      avatarImageUrl: patient?.avatarImageUrl ?? "",
       phone_number: patient?.phone_number ?? "",
       sex: patient?.sex ?? "male",
     },
@@ -72,7 +79,16 @@ const UpsertPatientForm = ({
 
   useEffect(() => {
     if (isOpen) {
-      form.reset(patient);
+      const resetValues = {
+        name: patient?.name ?? "",
+        email: patient?.email ?? "",
+        avatarImageUrl: patient?.avatarImageUrl ?? "",
+        phone_number: patient?.phone_number ?? "",
+        sex: patient?.sex ?? "male",
+      };
+
+      form.reset(resetValues);
+      setAvatarUrl(patient?.avatarImageUrl || undefined);
     }
   }, [isOpen, patient, form]);
 
@@ -124,27 +140,17 @@ const UpsertPatientForm = ({
     upsertPatientAction.execute({
       ...values,
       id: patient?.id,
+      avatarImageUrl: avatarUrl || "",
     });
   };
 
-  const formatPhoneNumber = (value: string) => {
-    // Remove todos os caracteres não-numéricos
-    const digits = value.replace(/\D/g, "");
-
-    // Se for um celular (com 11 dígitos)
-    if (digits.length === 11) {
-      return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}`;
-    }
-    // Se for um telefone fixo (com 10 dígitos)
-    else if (digits.length === 10) {
-      return `(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}`;
-    }
-
-    return value;
+  const handleAvatarUpload = (url: string) => {
+    setAvatarUrl(url);
+    form.setValue("avatarImageUrl", url);
   };
 
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>
           {patient ? patient.name : "Adicionar paciente"}
@@ -157,6 +163,19 @@ const UpsertPatientForm = ({
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Campo de Upload de Imagem */}
+          <FormItem>
+            <FormLabel>Foto de Perfil</FormLabel>
+            <FormControl>
+              <ProfileImageUploader
+                onUploadComplete={handleAvatarUpload}
+                currentImageUrl={avatarUrl}
+                fallbackText={patient?.name?.charAt(0) || "P"}
+                disabled={upsertPatientAction.isExecuting}
+              />
+            </FormControl>
+          </FormItem>
+
           <FormField
             control={form.control}
             name="name"
@@ -198,32 +217,17 @@ const UpsertPatientForm = ({
                       field.onChange(values.value || "");
                     }}
                     format={
-                      field.value?.length >= 11
+                      field.value &&
+                      field.value.replace(/\D/g, "").length === 11
                         ? "(##) #####-####"
                         : "(##) ####-####"
                     }
                     mask="_"
                     customInput={Input}
-                    required
-                    placeholder="(00) 00000-0000"
-                    onBlur={(e) => {
-                      if (!e.target.value) {
-                        field.onChange("");
-                      } else {
-                        // Formata o número ao sair do campo
-                        const formattedValue = formatPhoneNumber(
-                          e.target.value,
-                        );
-                        field.onChange(formattedValue.replace(/\D/g, ""));
-                      }
-                      field.onBlur();
-                    }}
+                    placeholder="(11) 99999-9999"
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Celular: (00) 00000-0000 | Fixo: (00) 0000-0000
-                </p>
               </FormItem>
             )}
           />
@@ -239,7 +243,7 @@ const UpsertPatientForm = ({
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                       <SelectValue placeholder="Selecione o sexo" />
                     </SelectTrigger>
                   </FormControl>

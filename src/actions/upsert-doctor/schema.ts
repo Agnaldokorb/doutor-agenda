@@ -9,6 +9,7 @@ export const upsertDoctorSchema = z
     email: z.string().trim().email({
       message: "E-mail inválido.",
     }),
+    avatarImageUrl: z.string().url().optional().or(z.literal("")),
     specialty: z.string().trim().min(1, {
       message: "Especialidade é obrigatória.",
     }),

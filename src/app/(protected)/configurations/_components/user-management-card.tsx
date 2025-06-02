@@ -1,15 +1,35 @@
 "use client";
 
-import {
-  UsersIcon,
-  UserPlusIcon,
-  ShieldIcon,
-  EditIcon,
-  TrashIcon,
-  EyeIcon,
-} from "lucide-react";
-import { useState } from "react";
+import "dayjs/locale/pt-br";
 
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import {
+  EditIcon,
+  EyeIcon,
+  LoaderIcon,
+  ShieldIcon,
+  TrashIcon,
+  UserPlusIcon,
+  UsersIcon,
+} from "lucide-react";
+import { useAction } from "next-safe-action/hooks";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { deleteUser } from "@/actions/delete-user";
+import { getClinicUsers } from "@/actions/get-clinic-users";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,58 +42,74 @@ import {
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
 import CreateUserForm from "./create-user-form";
+import EditUserForm from "./edit-user-form";
+
+// Configurar dayjs
+dayjs.extend(relativeTime);
+dayjs.locale("pt-br");
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  userType: "admin" | "doctor" | "atendente";
+  emailVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  doctorInfo: {
+    id: string;
+    specialty: string | null;
+  } | null;
+};
 
 export const UserManagementCard = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - em produção viria de uma API
-  const users = [
-    {
-      id: 1,
-      name: "Dr. João Silva",
-      email: "joao@clinica.com",
-      type: "doctor",
-      status: "active",
-      lastLogin: "2 horas atrás",
+  // Action para buscar usuários da clínica
+  const { execute: executeGetUsers } = useAction(getClinicUsers, {
+    onSuccess: ({ data }) => {
+      if (data?.users) {
+        setUsers(data.users as User[]);
+      }
+      setIsLoading(false);
     },
-    {
-      id: 2,
-      name: "Admin Principal",
-      email: "admin@clinica.com",
-      type: "admin",
-      status: "active",
-      lastLogin: "1 hora atrás",
+    onError: ({ error }) => {
+      console.error("Erro ao carregar usuários:", error);
+      setIsLoading(false);
     },
-    {
-      id: 3,
-      name: "Dra. Maria Santos",
-      email: "maria@clinica.com",
-      type: "doctor",
-      status: "inactive",
-      lastLogin: "1 semana atrás",
-    },
-    {
-      id: 4,
-      name: "Ana Atendente",
-      email: "ana@clinica.com",
-      type: "atendente",
-      status: "active",
-      lastLogin: "30 minutos atrás",
-    },
-  ];
+  });
 
-  const getUserTypeLabel = (type: string) => {
-    switch (type) {
-      case "admin":
-        return "Administrador";
-      case "doctor":
-        return "Médico";
-      case "atendente":
-        return "Atendente";
-      default:
-        return type;
-    }
+  // Action para deletar usuário
+  const { execute: executeDeleteUser, isExecuting: isDeletingUser } = useAction(
+    deleteUser,
+    {
+      onSuccess: ({ data }) => {
+        toast.success(data?.message || "Usuário excluído com sucesso!");
+        reloadUsers();
+      },
+      onError: ({ error }) => {
+        toast.error(error.serverError || "Erro ao excluir usuário");
+      },
+    },
+  );
+
+  // Carregar usuários ao montar componente
+  useEffect(() => {
+    executeGetUsers();
+  }, [executeGetUsers]);
+
+  const reloadUsers = () => {
+    setIsLoading(true);
+    executeGetUsers();
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    executeDeleteUser({ userId });
   };
 
   const getUserTypeBadge = (type: string) => {
@@ -101,12 +137,61 @@ export const UserManagementCard = () => {
     );
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === "active") {
+  const getStatusBadge = (user: User) => {
+    // Considera ativo se o email foi verificado
+    const isActive = user.emailVerified;
+    if (isActive) {
       return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
     }
     return <Badge className="bg-red-100 text-red-800">Inativo</Badge>;
   };
+
+  const getDeleteAlertContent = (user: User) => {
+    if (user.userType === "doctor") {
+      return {
+        title: "Excluir Médico",
+        description: `Tem certeza que deseja excluir o médico ${user.name}? 
+        
+⚠️ ATENÇÃO: Esta ação irá também:
+• Excluir TODAS as consultas agendadas com este médico
+• Remover todos os dados relacionados permanentemente
+• Esta ação não pode ser desfeita`,
+      };
+    }
+
+    return {
+      title: "Excluir Usuário",
+      description: `Tem certeza que deseja excluir o usuário ${user.name}? Esta ação não pode ser desfeita.`,
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <UsersIcon className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-green-900">
+              Gerenciamento de Usuários
+            </CardTitle>
+          </div>
+          <CardDescription className="text-green-700">
+            Gerencie médicos, administradores e atendentes do sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <LoaderIcon className="mx-auto h-6 w-6 animate-spin text-green-600" />
+              <p className="mt-2 text-sm text-gray-600">
+                Carregando usuários...
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-green-200 bg-green-50">
@@ -132,7 +217,7 @@ export const UserManagementCard = () => {
             <CreateUserForm
               onSuccess={() => {
                 setIsCreateModalOpen(false);
-                // Aqui você poderia recarregar a lista de usuários
+                reloadUsers();
               }}
             />
           </Dialog>
@@ -147,25 +232,25 @@ export const UserManagementCard = () => {
           <div className="grid grid-cols-4 gap-3">
             <div className="rounded-lg border border-green-200 bg-white p-3 text-center">
               <p className="text-lg font-bold text-green-600">
-                {users.filter((u) => u.type === "doctor").length}
+                {users.filter((u) => u.userType === "doctor").length}
               </p>
               <p className="text-xs text-green-700">Médicos</p>
             </div>
             <div className="rounded-lg border border-green-200 bg-white p-3 text-center">
               <p className="text-lg font-bold text-green-600">
-                {users.filter((u) => u.type === "admin").length}
+                {users.filter((u) => u.userType === "admin").length}
               </p>
               <p className="text-xs text-green-700">Admins</p>
             </div>
             <div className="rounded-lg border border-green-200 bg-white p-3 text-center">
               <p className="text-lg font-bold text-green-600">
-                {users.filter((u) => u.type === "atendente").length}
+                {users.filter((u) => u.userType === "atendente").length}
               </p>
               <p className="text-xs text-green-700">Atendentes</p>
             </div>
             <div className="rounded-lg border border-green-200 bg-white p-3 text-center">
               <p className="text-lg font-bold text-green-600">
-                {users.filter((u) => u.status === "active").length}
+                {users.filter((u) => u.emailVerified).length}
               </p>
               <p className="text-xs text-green-700">Ativos</p>
             </div>
@@ -189,44 +274,112 @@ export const UserManagementCard = () => {
             </div>
 
             <div className="space-y-3">
-              {(showUserList ? users : users.slice(0, 2)).map((user) => (
-                <div
-                  key={user.id}
-                  className="bg-green-25 flex items-center justify-between rounded-lg border border-green-100 p-3"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
-                      {user.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getUserTypeBadge(user.type)}
-                    {getStatusBadge(user.status)}
-                    <div className="flex space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
-                      >
-                        <EditIcon className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-red-600 hover:bg-red-100"
-                      >
-                        <TrashIcon className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+              {users.length === 0 ? (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-gray-500">
+                    Nenhum usuário encontrado
+                  </p>
                 </div>
-              ))}
+              ) : (
+                (showUserList ? users : users.slice(0, 2)).map((user) => (
+                  <div
+                    key={user.id}
+                    className="bg-green-25 flex items-center justify-between rounded-lg border border-green-100 p-3"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                        {user.doctorInfo?.specialty && (
+                          <p className="text-xs text-green-600">
+                            {user.doctorInfo.specialty}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {getUserTypeBadge(user.userType)}
+                      {getStatusBadge(user)}
+                      <div className="flex space-x-1">
+                        {/* Botão Editar */}
+                        <Dialog
+                          open={editingUser?.id === user.id}
+                          onOpenChange={(open) =>
+                            setEditingUser(open ? user : null)
+                          }
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
+                              title="Editar usuário"
+                            >
+                              <EditIcon className="h-3 w-3" />
+                            </Button>
+                          </DialogTrigger>
+                          {editingUser && (
+                            <EditUserForm
+                              user={editingUser}
+                              onSuccess={() => {
+                                setEditingUser(null);
+                                reloadUsers();
+                              }}
+                            />
+                          )}
+                        </Dialog>
+
+                        {/* Botão Excluir */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-600 hover:bg-red-100"
+                              title="Excluir usuário"
+                              disabled={isDeletingUser}
+                            >
+                              <TrashIcon className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {getDeleteAlertContent(user).title}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription className="whitespace-pre-line">
+                                {getDeleteAlertContent(user).description}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                                disabled={isDeletingUser}
+                              >
+                                {isDeletingUser ? (
+                                  <>
+                                    <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                                    Excluindo...
+                                  </>
+                                ) : (
+                                  "Excluir"
+                                )}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -244,7 +397,7 @@ export const UserManagementCard = () => {
             <CreateUserForm
               onSuccess={() => {
                 setIsCreateModalOpen(false);
-                // Aqui você poderia recarregar a lista de usuários
+                reloadUsers();
               }}
             />
           </Dialog>

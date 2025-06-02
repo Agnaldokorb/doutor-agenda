@@ -57,6 +57,20 @@
       "when": 1748755563822,
       "tag": "0007_sharp_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1748789420768,
+      "tag": "0008_strange_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1748815137076,
+      "tag": "0009_icy_human_cannonball",
+      "breakpoints": true
     }
   ]
 }

@@ -65,11 +65,15 @@ const DoctorDashboardPage = () => {
 
   useEffect(() => {
     getDoctorAppointmentsAction.execute();
-  }, []);
+  }, [getDoctorAppointmentsAction]);
 
   const data = getDoctorAppointmentsAction.result?.data;
   const doctor = data?.doctor;
-  const appointments = data?.appointments || [];
+
+  // Memorizar appointments para evitar dependências instáveis no useMemo
+  const appointments = useMemo(() => {
+    return data?.appointments || [];
+  }, [data?.appointments]);
 
   // Filtrar agendamentos
   const filteredAppointments = useMemo(() => {
@@ -448,7 +452,15 @@ const DoctorDashboardPage = () => {
 
                                 <div className="flex flex-col items-end space-y-2">
                                   <div className="text-lg font-semibold text-gray-900">
-                                    {dayjs(appointment.date).format("HH:mm")}
+                                    {(() => {
+                                      const utcDate = new Date(
+                                        appointment.date,
+                                      );
+                                      const localDate = new Date(
+                                        utcDate.getTime() - 3 * 60 * 60 * 1000,
+                                      );
+                                      return dayjs(localDate).format("HH:mm");
+                                    })()}
                                   </div>
                                   <Badge
                                     className={`${getStatusColor(appointment.status)} flex items-center space-x-1`}

@@ -8,8 +8,9 @@ export const upsertPatientSchema = z.object({
   email: z.string().trim().email({
     message: "E-mail inválido.",
   }),
-  phone_number: z.string().trim().min(1, {
-    message: "Número de telefone é obrigatório.",
+  avatarImageUrl: z.string().url().optional().or(z.literal("")),
+  phone_number: z.string().trim().min(10, {
+    message: "Número de telefone deve ter pelo menos 10 dígitos.",
   }),
   sex: z.enum(["male", "female"], {
     required_error: "Sexo é obrigatório.",

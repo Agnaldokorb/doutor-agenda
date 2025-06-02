@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ProfileImageUploader } from "@/components/ui/profile-image-uploader";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ const formSchema = z
     email: z.string().trim().email({
       message: "E-mail inválido.",
     }),
+    avatarImageUrl: z.string().optional(),
     specialty: z.string().trim().min(1, {
       message: "Especialidade é obrigatória.",
     }),
@@ -82,12 +84,17 @@ const UpsertDoctorForm = ({
   onSuccess,
   isOpen,
 }: UpsertDoctorFormProps) => {
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
+    doctor?.avatarImageUrl || undefined,
+  );
+
   const form = useForm<z.infer<typeof formSchema>>({
     shouldUnregister: true,
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: doctor?.name ?? "",
       email: doctor?.email ?? "",
+      avatarImageUrl: doctor?.avatarImageUrl ?? "",
       specialty: doctor?.specialty ?? "",
       appointmentPrice: doctor?.appointmentPriceInCents
         ? doctor.appointmentPriceInCents / 100
@@ -101,9 +108,10 @@ const UpsertDoctorForm = ({
 
   useEffect(() => {
     if (isOpen) {
-      form.reset({
+      const resetValues = {
         name: doctor?.name ?? "",
         email: doctor?.email ?? "",
+        avatarImageUrl: doctor?.avatarImageUrl ?? "",
         specialty: doctor?.specialty ?? "",
         appointmentPrice: doctor?.appointmentPriceInCents
           ? doctor.appointmentPriceInCents / 100
@@ -112,7 +120,10 @@ const UpsertDoctorForm = ({
         availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
         availableFromTime: doctor?.availableFromTime ?? "",
         availableToTime: doctor?.availableToTime ?? "",
-      });
+      };
+
+      form.reset(resetValues);
+      setAvatarUrl(doctor?.avatarImageUrl || undefined);
     }
   }, [isOpen, doctor, form]);
 
@@ -161,14 +172,20 @@ const UpsertDoctorForm = ({
     upsertDoctorAction.execute({
       ...values,
       id: doctor?.id,
+      avatarImageUrl: avatarUrl || "",
       availableFromWeekDay: parseInt(values.availableFromWeekDay),
       availableToWeekDay: parseInt(values.availableToWeekDay),
       appointmentPriceInCents: values.appointmentPrice * 100,
     });
   };
 
+  const handleAvatarUpload = (url: string) => {
+    setAvatarUrl(url);
+    form.setValue("avatarImageUrl", url);
+  };
+
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{doctor ? doctor.name : "Adicionar médico"}</DialogTitle>
         <DialogDescription>
@@ -179,6 +196,19 @@ const UpsertDoctorForm = ({
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Campo de Upload de Imagem */}
+          <FormItem>
+            <FormLabel>Foto de Perfil</FormLabel>
+            <FormControl>
+              <ProfileImageUploader
+                onUploadComplete={handleAvatarUpload}
+                currentImageUrl={avatarUrl}
+                fallbackText={doctor?.name?.charAt(0) || "M"}
+                disabled={upsertDoctorAction.isExecuting}
+              />
+            </FormControl>
+          </FormItem>
+
           <FormField
             control={form.control}
             name="name"

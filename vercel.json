@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/email/send-reminders",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/email/send-reminders/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

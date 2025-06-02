@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldIcon, LockIcon, EyeIcon, AlertTriangleIcon } from "lucide-react";
+import { EyeIcon, LockIcon, ShieldIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

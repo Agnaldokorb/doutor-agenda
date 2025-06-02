@@ -45,7 +45,11 @@ export default function MonthSelector({
   // Mostrar um loading básico durante a hidratação
   if (!isClient) {
     return (
-      <Button variant="outline" className="w-[240px] justify-start" disabled>
+      <Button 
+        variant="outline" 
+        className="w-[240px] justify-start bg-white/90 text-white border-white/30 hover:bg-white/100 hover:text-gray-900" 
+        disabled
+      >
         <CalendarIcon className="mr-2 h-4 w-4" />
         Carregando...
       </Button>
@@ -55,27 +59,34 @@ export default function MonthSelector({
   return (
     <DropdownMenu key={selectedMonth}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-[240px] justify-start">
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {selectedOption?.label || options[0]?.label}
+        <Button 
+          variant="outline" 
+          className="w-[240px] justify-start bg-white/90 text-gray-900 border-white/30 hover:bg-white hover:text-gray-900 font-medium"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 text-gray-700" />
+          <span className="text-gray-900 font-medium">
+            {selectedOption?.label || options[0]?.label}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="max-h-[300px] w-[240px] overflow-y-auto"
+        className="max-h-[300px] w-[240px] overflow-y-auto bg-white"
       >
         {options.map((option) => (
           <DropdownMenuItem
             key={option.value}
             onClick={() => handleMonthChange(option.value)}
             className={cn(
-              "flex items-center justify-between",
-              selectedMonth === option.value && "font-medium",
+              "flex items-center justify-between cursor-pointer",
+              selectedMonth === option.value && "bg-blue-50 font-semibold text-blue-900",
             )}
           >
-            {option.label}
+            <span className="text-gray-900">
+              {option.label}
+            </span>
             {selectedMonth === option.value && (
-              <Check className="text-primary h-4 w-4" />
+              <Check className="h-4 w-4 text-blue-600" />
             )}
           </DropdownMenuItem>
         ))}

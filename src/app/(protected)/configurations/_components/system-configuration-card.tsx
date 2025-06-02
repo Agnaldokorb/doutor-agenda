@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  SettingsIcon,
-  ClockIcon,
   CalendarIcon,
+  ClockIcon,
   MailIcon,
-  ToggleLeftIcon,
+  SettingsIcon,
   ToggleRightIcon,
 } from "lucide-react";
 import { useState } from "react";

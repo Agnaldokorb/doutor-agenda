@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { medicalRecordsTable, appointmentsTable } from "@/db/schema";
+import { appointmentsTable,medicalRecordsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -89,3 +89,4 @@ export const upsertMedicalRecord = actionClient
       );
     }
   });
+ 

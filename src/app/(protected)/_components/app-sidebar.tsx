@@ -11,8 +11,9 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ export function AppSidebar() {
   const router = useRouter();
   const session = authClient.useSession();
   const pathname = usePathname();
+  const [imageError, setImageError] = useState(false);
 
   // Itens base disponíveis para todos os usuários autenticados
   const baseItems = [
@@ -86,6 +88,7 @@ export function AppSidebar() {
       },
     });
   };
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4">
@@ -117,13 +120,11 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar>
-                    {session.data?.user?.image ? (
-                      <Image
+                    {session.data?.user?.image && !imageError ? (
+                      <AvatarImage
                         src={session.data.user.image}
                         alt={session.data?.user?.name || "Avatar do usuário"}
-                        width={50}
-                        height={50}
-                        className="h-full w-full object-cover"
+                        onError={() => setImageError(true)}
                       />
                     ) : (
                       <AvatarFallback>

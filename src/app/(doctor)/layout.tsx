@@ -51,12 +51,12 @@ const DoctorLayout = ({ children }: DoctorLayoutProps) => {
               <span className="text-sm text-gray-700">
                 Dr(a). {session.data.user.name}
               </span>
-              <button
+                <button
                 onClick={handleSignOut}
-                className="text-sm text-red-600 hover:text-red-800"
-              >
-                Sair
-              </button>
+                  className="text-sm text-red-600 hover:text-red-800"
+                >
+                  Sair
+                </button>
             </div>
           </div>
         </div>

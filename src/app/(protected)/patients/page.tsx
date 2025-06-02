@@ -18,7 +18,9 @@ import { patientsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import AddPatientButton from "./_components/add-patient-button";
+import SimpleTestForm from "./_components/simple-test-form";
 import { patientsTableColumns } from "./_components/table-columns";
+import TestButton from "./_components/test-button";
 
 interface PatientsPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -59,6 +61,8 @@ const PatientsPage = async ({ searchParams }: PatientsPageProps) => {
         </PageHeaderContent>
         <PageActions>
           <SearchInput placeholder="Buscar paciente..." className="mr-2 w-64" />
+          <TestButton />
+          <SimpleTestForm />
           <AddPatientButton />
         </PageActions>
       </PageHeader>

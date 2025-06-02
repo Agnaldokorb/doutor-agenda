@@ -54,7 +54,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Corrigindo a consulta SQL para usar a API do Drizzle corretamente
+      // Criar data para o início e fim do dia em UTC-3
+      const localDate = new Date(year, month - 1, day);
+      const startOfDay = new Date(localDate);
+      startOfDay.setUTCHours(3, 0, 0, 0); // UTC-3 para UTC: 00:00 em UTC-3 = 03:00 em UTC
+
+      const endOfDay = new Date(localDate);
+      endOfDay.setUTCHours(26, 59, 59, 999); // UTC-3 para UTC: 23:59 em UTC-3 = 02:59+1 em UTC
+
+      console.log("API - Buscando agendamentos entre:", {
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString(),
+      });
+
+      // Buscar agendamentos do dia usando range de datas em UTC
       const bookedAppointments = await db
         .select()
         .from(appointmentsTable)
@@ -62,25 +75,27 @@ export async function GET(request: NextRequest) {
           and(
             eq(appointmentsTable.doctorId, doctorId),
             eq(appointmentsTable.clinicId, session.user.clinic.id),
-            sql`DATE(${appointmentsTable.date}) = ${dateStr}`,
+            sql`${appointmentsTable.date} >= ${startOfDay}`,
+            sql`${appointmentsTable.date} < ${endOfDay}`,
             sql`${appointmentsTable.status} != 'cancelado'`,
           ),
         );
 
       console.log("API - Agendamentos encontrados:", bookedAppointments.length);
 
-      // Extrair os horários ocupados
+      // Extrair os horários ocupados convertendo UTC para UTC-3
       const bookedSlots = bookedAppointments.map((appointment) => {
         const appointmentDate = new Date(appointment.date);
-        const hours = appointmentDate.getHours().toString().padStart(2, "0");
-        const minutes = appointmentDate
-          .getMinutes()
-          .toString()
-          .padStart(2, "0");
+        // Converter UTC para UTC-3 subtraindo 3 horas
+        const localTime = new Date(
+          appointmentDate.getTime() - 3 * 60 * 60 * 1000,
+        );
+        const hours = localTime.getUTCHours().toString().padStart(2, "0");
+        const minutes = localTime.getUTCMinutes().toString().padStart(2, "0");
         return `${hours}:${minutes}:00`;
       });
 
-      console.log("API - Horários ocupados:", bookedSlots);
+      console.log("API - Horários ocupados (UTC-3):", bookedSlots);
 
       return NextResponse.json({ bookedSlots });
     } catch (dateError) {

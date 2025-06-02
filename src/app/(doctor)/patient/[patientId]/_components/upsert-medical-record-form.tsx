@@ -7,8 +7,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { upsertMedicalRecord } from "@/actions/upsert-medical-record";
 import { getPatientAppointments } from "@/actions/get-patient-appointments";
+import { upsertMedicalRecord } from "@/actions/upsert-medical-record";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -50,7 +50,7 @@ const formSchema = z.object({
   medication: z.string().trim().min(1, {
     message: "Medicação é obrigatória.",
   }),
-  medicalCertificate: z.boolean().default(false),
+  medicalCertificate: z.boolean(),
   certificateDays: z.number().min(0).max(365).optional(),
   observations: z.string().trim().optional(),
 });
@@ -109,7 +109,7 @@ const UpsertMedicalRecordForm = ({
   const upsertMedicalRecordAction = useAction(upsertMedicalRecord, {
     onSuccess: (data) => {
       console.log("✅ Prontuário salvo:", data);
-      toast.success(data.message);
+      toast.success(data.data?.message || "Prontuário salvo com sucesso!");
       onSuccess?.();
     },
     onError: (error) => {
@@ -123,7 +123,7 @@ const UpsertMedicalRecordForm = ({
   // Buscar agendamentos quando o componente montar
   useEffect(() => {
     getPatientAppointmentsAction.execute({ patientId });
-  }, [patientId]);
+  }, [patientId, getPatientAppointmentsAction]);
 
   // Resetar o formulário quando receber um prontuário para editar
   useEffect(() => {
@@ -205,17 +205,24 @@ const UpsertMedicalRecordForm = ({
                     <SelectContent>
                       {availableAppointments.map((appointment) => (
                         <SelectItem key={appointment.id} value={appointment.id}>
-                          {new Date(appointment.date).toLocaleDateString(
-                            "pt-BR",
-                          )}{" "}
+                          {(() => {
+                            const utcDate = new Date(appointment.date);
+                            const localDate = new Date(
+                              utcDate.getTime() - 3 * 60 * 60 * 1000,
+                            );
+                            return localDate.toLocaleDateString("pt-BR");
+                          })()}{" "}
                           -{" "}
-                          {new Date(appointment.date).toLocaleTimeString(
-                            "pt-BR",
-                            {
+                          {(() => {
+                            const utcDate = new Date(appointment.date);
+                            const localDate = new Date(
+                              utcDate.getTime() - 3 * 60 * 60 * 1000,
+                            );
+                            return localDate.toLocaleTimeString("pt-BR", {
                               hour: "2-digit",
                               minute: "2-digit",
-                            },
-                          )}{" "}
+                            });
+                          })()}{" "}
                           - Dr(a). {appointment.doctor.name}
                         </SelectItem>
                       ))}

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { usersTable, usersToClinicsTable, doctorsTable } from "@/db/schema";
+import { doctorsTable,usersTable, usersToClinicsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -53,7 +53,7 @@ export const createUser = actionClient
       // 2. Atualizar o tipo do usuário na tabela users
       await db
         .update(usersTable)
-        .set({ userType: parsedInput.userType as any })
+        .set({ userType: parsedInput.userType })
         .where(eq(usersTable.id, userResponse.user.id));
 
       console.log(`✅ Tipo do usuário definido como ${parsedInput.userType}`);

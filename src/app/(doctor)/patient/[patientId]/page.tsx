@@ -4,36 +4,38 @@ import "dayjs/locale/pt-br";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import {
+  ActivityIcon,
+  AlertCircleIcon,
   ArrowLeftIcon,
+  CalendarDaysIcon,
   CalendarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DownloadIcon,
+  EditIcon,
+  EyeIcon,
   FileTextIcon,
-  UserIcon,
-  PlusIcon,
+  FileX2Icon,
+  HeartIcon,
   MailIcon,
   PhoneIcon,
-  ClockIcon,
-  ActivityIcon,
-  TrendingUpIcon,
-  CalendarDaysIcon,
-  SearchIcon,
-  EyeIcon,
-  EditIcon,
-  DownloadIcon,
-  AlertCircleIcon,
-  CheckCircleIcon,
-  StethoscopeIcon,
   PillIcon,
-  HeartIcon,
-  FileX2Icon,
+  PlusIcon,
+  SearchIcon,
+  StethoscopeIcon,
+  TrendingUpIcon,
+  UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect, useState, useMemo, use } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { getPatientMedicalRecords } from "@/actions/get-patient-medical-records";
 import { getCurrentDoctor } from "@/actions/get-current-doctor";
+import { getPatientMedicalRecords } from "@/actions/get-patient-medical-records";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +45,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -63,6 +65,8 @@ interface PatientPageProps {
 
 dayjs.locale("pt-br");
 dayjs.extend(relativeTime);
+dayjs.extend(timezone);
+dayjs.extend(utc);
 
 const PatientPage = ({ params }: PatientPageProps) => {
   const router = useRouter();
@@ -72,7 +76,9 @@ const PatientPage = ({ params }: PatientPageProps) => {
   const [doctorFilter, setDoctorFilter] = useState("todos");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<
+    (typeof medicalRecords)[0] | null
+  >(null);
 
   const getPatientMedicalRecordsAction = useAction(getPatientMedicalRecords, {
     onSuccess: (data) => {
@@ -95,14 +101,23 @@ const PatientPage = ({ params }: PatientPageProps) => {
   });
 
   useEffect(() => {
+    getCurrentDoctorAction.execute();
     getPatientMedicalRecordsAction.execute({
       patientId: resolvedParams.patientId,
     });
-    getCurrentDoctorAction.execute();
-  }, [resolvedParams.patientId]);
+  }, [
+    resolvedParams.patientId,
+    getCurrentDoctorAction,
+    getPatientMedicalRecordsAction,
+  ]);
 
   const data = getPatientMedicalRecordsAction.result?.data;
-  const medicalRecords = data?.medicalRecords || [];
+
+  // Memorizar medicalRecords para evitar dependências instáveis no useMemo
+  const medicalRecords = useMemo(() => {
+    return data?.medicalRecords || [];
+  }, [data?.medicalRecords]);
+
   const patient = medicalRecords[0]?.patient;
 
   // Obter o ID do médico logado da sessão
@@ -186,11 +201,6 @@ const PatientPage = ({ params }: PatientPageProps) => {
 
   const getSexIcon = (sex: string) => {
     return sex === "male" ? "👨" : "👩";
-  };
-
-  const getPatientAge = (birthDate?: string) => {
-    if (!birthDate) return "Não informado";
-    return dayjs().diff(dayjs(birthDate), "years") + " anos";
   };
 
   if (
@@ -498,9 +508,16 @@ const PatientPage = ({ params }: PatientPageProps) => {
                                   <span className="flex items-center space-x-1">
                                     <ClockIcon className="h-3 w-3" />
                                     <span>
-                                      {dayjs(record.appointment.date).format(
-                                        "HH:mm",
-                                      )}
+                                      {(() => {
+                                        const utcDate = new Date(
+                                          record.appointment.date,
+                                        );
+                                        const localDate = new Date(
+                                          utcDate.getTime() -
+                                            3 * 60 * 60 * 1000,
+                                        );
+                                        return dayjs(localDate).format("HH:mm");
+                                      })()}
                                     </span>
                                   </span>
                                 </>
@@ -675,7 +692,7 @@ const PatientPage = ({ params }: PatientPageProps) => {
         <UpsertMedicalRecordForm
           patientId={resolvedParams.patientId}
           doctorId={currentDoctorId || ""}
-          medicalRecord={selectedRecord}
+          medicalRecord={selectedRecord || undefined}
           onSuccess={() => {
             setIsEditModalOpen(false);
             setSelectedRecord(null);
