@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/db";
 import { patientsTable } from "@/db/schema";
+import { logDataAccess, logDataOperation } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 import { deleteFileByUrl } from "@/lib/utapi";
@@ -32,10 +33,13 @@ export const upsertPatient = actionClient
     }
 
     let oldAvatarUrl: string | null = null;
+    let isUpdate = false;
+    let existingPatientData: any = null;
 
     // Se for edição, buscar imagem antiga para exclusão
     if (parsedInput.id) {
       console.log(`📝 Editando paciente existente: ${parsedInput.name}`);
+      isUpdate = true;
 
       const existingPatient = await db.query.patientsTable.findFirst({
         where: eq(patientsTable.id, parsedInput.id),
@@ -43,6 +47,16 @@ export const upsertPatient = actionClient
 
       if (existingPatient) {
         oldAvatarUrl = existingPatient.avatarImageUrl;
+        existingPatientData = existingPatient;
+
+        // Log de acesso aos dados do paciente (LGPD Art. 37)
+        await logDataAccess({
+          userId: session.user.id,
+          clinicId: session.user.clinic.id,
+          dataType: "patient",
+          recordId: parsedInput.id,
+          action: "acessar para edição",
+        });
       }
     } else {
       console.log(`🏥 Criando novo paciente: ${parsedInput.name}`);
@@ -70,20 +84,74 @@ export const upsertPatient = actionClient
       }
     }
 
-    await db
-      .insert(patientsTable)
-      .values({
-        ...parsedInput,
-        id: parsedInput.id,
-        clinicId: session?.user.clinic?.id,
-      })
-      .onConflictDoUpdate({
-        target: [patientsTable.id],
-        set: {
+    try {
+      const result = await db
+        .insert(patientsTable)
+        .values({
           ...parsedInput,
-        },
+          id: parsedInput.id,
+          clinicId: session?.user.clinic?.id,
+        })
+        .onConflictDoUpdate({
+          target: [patientsTable.id],
+          set: {
+            ...parsedInput,
+          },
+        })
+        .returning();
+
+      const savedPatient = result[0];
+
+      // Log de auditoria LGPD para operação de dados
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: isUpdate ? "update" : "create",
+        dataType: "patient",
+        recordId: savedPatient.id,
+        changes: isUpdate
+          ? {
+              before: existingPatientData
+                ? {
+                    name: existingPatientData.name,
+                    email: existingPatientData.email,
+                    phone_number: existingPatientData.phone_number,
+                    sex: existingPatientData.sex,
+                  }
+                : null,
+              after: {
+                name: parsedInput.name,
+                email: parsedInput.email,
+                phone_number: parsedInput.phone_number,
+                sex: parsedInput.sex,
+              },
+            }
+          : {
+              created: {
+                name: parsedInput.name,
+                email: parsedInput.email,
+                phone_number: parsedInput.phone_number,
+                sex: parsedInput.sex,
+              },
+            },
+        success: true,
       });
 
-    console.log(`✅ Paciente salvo com sucesso: ${parsedInput.name}`);
-    revalidatePath("/patients");
+      console.log(`✅ Paciente salvo com sucesso: ${parsedInput.name}`);
+      revalidatePath("/patients");
+    } catch (error) {
+      // Log de falha na operação
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: isUpdate ? "update" : "create",
+        dataType: "patient",
+        recordId: parsedInput.id,
+        changes: { error: "Falha na operação de salvar paciente" },
+        success: false,
+      });
+
+      console.error("❌ Erro ao salvar paciente:", error);
+      throw error;
+    }
   });

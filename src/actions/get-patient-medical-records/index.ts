@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { medicalRecordsTable } from "@/db/schema";
+import { logDataAccess } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -33,6 +34,16 @@ export const getPatientMedicalRecords = actionClient
     );
 
     try {
+      // Log de acesso aos prontuários médicos (LGPD Art. 37)
+      await logDataAccess({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        dataType: "medical_record",
+        recordId: parsedInput.patientId,
+        action: "consultar prontuários médicos",
+        success: true,
+      });
+
       // Buscar todos os prontuários do paciente na clínica
       const medicalRecords = await db.query.medicalRecordsTable.findMany({
         where: eq(medicalRecordsTable.patientId, parsedInput.patientId),
@@ -76,6 +87,16 @@ export const getPatientMedicalRecords = actionClient
         medicalRecords: filteredRecords,
       };
     } catch (error) {
+      // Log de falha no acesso
+      await logDataAccess({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        dataType: "medical_record",
+        recordId: parsedInput.patientId,
+        action: "consultar prontuários médicos",
+        success: false,
+      });
+
       console.error("❌ Erro ao buscar prontuários:", error);
       throw new Error(
         `Falha ao buscar prontuários: ${error instanceof Error ? error.message : "Erro desconhecido"}`,

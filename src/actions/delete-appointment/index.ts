@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
+import { logDataOperation } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { emailService } from "@/lib/email-service";
 import { actionClient } from "@/lib/next-safe-action";
@@ -30,59 +31,88 @@ export const deleteAppointment = actionClient
 
     console.log("Cancelando agendamento:", parsedInput.id);
 
-    // Buscar dados do agendamento antes de deletar (para o email)
-    const appointmentData = await db.query.appointmentsTable.findFirst({
-      where: (appointments, { eq, and }) =>
-        and(
-          eq(appointments.id, parsedInput.id),
-          eq(appointments.clinicId, session.user.clinic!.id),
-        ),
-      with: {
-        patient: true,
-        doctor: true,
-      },
-    });
+    try {
+      // Buscar dados do agendamento antes de deletar (para o email e log)
+      const appointmentData = await db.query.appointmentsTable.findFirst({
+        where: (appointments, { eq, and }) =>
+          and(
+            eq(appointments.id, parsedInput.id),
+            eq(appointments.clinicId, session.user.clinic!.id),
+          ),
+        with: {
+          patient: true,
+          doctor: true,
+        },
+      });
 
-    if (!appointmentData) {
-      throw new Error("Agendamento não encontrado");
-    }
-
-    // Deletar o agendamento
-    await db
-      .delete(appointmentsTable)
-      .where(
-        and(
-          eq(appointmentsTable.id, parsedInput.id),
-          eq(appointmentsTable.clinicId, session.user.clinic.id),
-        ),
-      );
-
-    // Enviar email de cancelamento
-    if (appointmentData.patient && appointmentData.doctor) {
-      try {
-        console.log("📧 Enviando email de cancelamento...");
-
-        await emailService.sendAppointmentCancellation({
-          patientName: appointmentData.patient.name,
-          doctorName: appointmentData.doctor.name,
-          doctorSpecialty: appointmentData.doctor.specialty,
-          appointmentDate: appointmentData.date,
-          patientEmail: appointmentData.patient.email,
-          price: appointmentData.doctor.appointmentPriceInCents,
-          confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
-        });
-
-        console.log("✅ Email de cancelamento enviado com sucesso!");
-      } catch (error) {
-        console.error("❌ Erro ao enviar email de cancelamento:", error);
-        // Não falhar o cancelamento por causa do email
+      if (!appointmentData) {
+        throw new Error("Agendamento não encontrado");
       }
+
+      // Deletar o agendamento
+      await db
+        .delete(appointmentsTable)
+        .where(
+          and(
+            eq(appointmentsTable.id, parsedInput.id),
+            eq(appointmentsTable.clinicId, session.user.clinic.id),
+          ),
+        );
+
+      // Log de auditoria LGPD para exclusão
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: "delete",
+        dataType: "appointment",
+        recordId: parsedInput.id,
+        changes: {
+          deleted: {
+            patientName: appointmentData.patient.name,
+            doctorName: appointmentData.doctor.name,
+            date: appointmentData.date,
+            status: appointmentData.status,
+          },
+        },
+        success: true,
+      });
+
+      // Enviar email de cancelamento para o paciente
+      if (appointmentData.patient.email) {
+        console.log(
+          "📧 Enviando email de cancelamento para:",
+          appointmentData.patient.email,
+        );
+
+        try {
+          await emailService.sendCancellationEmail({
+            to: appointmentData.patient.email,
+            patientName: appointmentData.patient.name,
+            doctorName: appointmentData.doctor.name,
+            appointmentDate: appointmentData.date,
+          });
+          console.log("✅ Email de cancelamento enviado");
+        } catch (emailError) {
+          console.error("❌ Erro ao enviar email de cancelamento:", emailError);
+          // Não falha a operação por causa do email
+        }
+      }
+
+      console.log("✅ Agendamento cancelado com sucesso");
+      revalidatePath("/appointments");
+    } catch (error) {
+      // Log de falha na operação
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: "delete",
+        dataType: "appointment",
+        recordId: parsedInput.id,
+        changes: { error: "Falha na exclusão do agendamento" },
+        success: false,
+      });
+
+      console.error("❌ Erro ao cancelar agendamento:", error);
+      throw error;
     }
-
-    revalidatePath("/appointments");
-
-    return {
-      message: "Agendamento cancelado com sucesso!",
-      emailSent: !!appointmentData.patient && !!appointmentData.doctor,
-    };
   });

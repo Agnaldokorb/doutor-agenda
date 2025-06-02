@@ -1,11 +1,12 @@
 "use server";
 
-import { and,eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
+import { logDataAccess } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -33,6 +34,16 @@ export const getPatientAppointments = actionClient
     );
 
     try {
+      // Log de acesso aos dados do paciente (LGPD Art. 37)
+      await logDataAccess({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        dataType: "appointment",
+        recordId: parsedInput.patientId,
+        action: "consultar agendamentos",
+        success: true,
+      });
+
       // Buscar agendamentos não concluídos do paciente
       const appointments = await db.query.appointmentsTable.findMany({
         where: and(
@@ -58,6 +69,16 @@ export const getPatientAppointments = actionClient
         appointments,
       };
     } catch (error) {
+      // Log de falha no acesso
+      await logDataAccess({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        dataType: "appointment",
+        recordId: parsedInput.patientId,
+        action: "consultar agendamentos",
+        success: false,
+      });
+
       console.error("❌ Erro ao buscar agendamentos:", error);
       throw new Error(
         `Falha ao buscar agendamentos: ${error instanceof Error ? error.message : "Erro desconhecido"}`,

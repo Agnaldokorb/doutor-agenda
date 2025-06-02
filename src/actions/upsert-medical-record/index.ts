@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { appointmentsTable,medicalRecordsTable } from "@/db/schema";
+import { appointmentsTable, medicalRecordsTable } from "@/db/schema";
+import { logDataOperation } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -28,8 +29,18 @@ export const upsertMedicalRecord = actionClient
 
     console.log("📋 Dados do prontuário recebidos:", parsedInput);
 
+    // Verificar se é criação ou edição
+    const isEdit = !!parsedInput.id;
+    let existingRecord = null;
+
+    if (isEdit) {
+      existingRecord = await db.query.medicalRecordsTable.findFirst({
+        where: eq(medicalRecordsTable.id, parsedInput.id),
+      });
+    }
+
     try {
-      await db
+      const result = await db
         .insert(medicalRecordsTable)
         .values({
           ...parsedInput,
@@ -50,7 +61,53 @@ export const upsertMedicalRecord = actionClient
               : null,
             updatedAt: new Date(),
           },
-        });
+        })
+        .returning();
+
+      const savedRecord = result[0];
+
+      // Log de auditoria LGPD para operação de dados
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: isEdit ? "update" : "create",
+        dataType: "medical_record",
+        recordId: savedRecord.id,
+        changes: isEdit
+          ? {
+              before: existingRecord
+                ? {
+                    symptoms: existingRecord.symptoms,
+                    diagnosis: existingRecord.diagnosis,
+                    treatment: existingRecord.treatment,
+                    medication: existingRecord.medication,
+                    medicalCertificate: existingRecord.medicalCertificate,
+                    certificateDays: existingRecord.certificateDays,
+                  }
+                : null,
+              after: {
+                symptoms: parsedInput.symptoms,
+                diagnosis: parsedInput.diagnosis,
+                treatment: parsedInput.treatment,
+                medication: parsedInput.medication,
+                medicalCertificate: parsedInput.medicalCertificate,
+                certificateDays: parsedInput.certificateDays,
+              },
+            }
+          : {
+              created: {
+                patientId: parsedInput.patientId,
+                doctorId: parsedInput.doctorId,
+                symptoms: parsedInput.symptoms,
+                diagnosis: parsedInput.diagnosis,
+                treatment: parsedInput.treatment,
+                medication: parsedInput.medication,
+                medicalCertificate: parsedInput.medicalCertificate,
+                certificateDays: parsedInput.certificateDays,
+              },
+            },
+        success: true,
+      });
 
       console.log("✅ Prontuário salvo com sucesso");
 
@@ -83,10 +140,28 @@ export const upsertMedicalRecord = actionClient
           : "Prontuário criado com sucesso!",
       };
     } catch (error) {
+      // Log de falha na operação
+      await logDataOperation({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        operation: isEdit ? "update" : "create",
+        dataType: "medical_record",
+        recordId: parsedInput.id,
+        changes: {
+          error: "Falha na operação de prontuário",
+          data: {
+            patientId: parsedInput.patientId,
+            doctorId: parsedInput.doctorId,
+            symptoms: parsedInput.symptoms,
+            diagnosis: parsedInput.diagnosis,
+          },
+        },
+        success: false,
+      });
+
       console.error("❌ Erro ao salvar prontuário:", error);
       throw new Error(
         `Falha ao salvar prontuário: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
       );
     }
   });
- 

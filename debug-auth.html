@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Debug Auth</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .form {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ccc;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f5f5f5;
+      }
+      .error {
+        background: #ffeeee;
+        color: red;
+      }
+      .success {
+        background: #eeffee;
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Debug Autenticação</h1>
+
+    <div class="form">
+      <h2>1. Criar Usuário</h2>
+      <input type="text" id="regName" placeholder="Nome" value="Admin Teste" />
+      <input
+        type="email"
+        id="regEmail"
+        placeholder="Email"
+        value="admin@teste.com"
+      />
+      <input
+        type="password"
+        id="regPassword"
+        placeholder="Senha"
+        value="123456789"
+      />
+      <button onclick="createUser()">Criar Usuário</button>
+      <div id="regResult" class="result"></div>
+    </div>
+
+    <div class="form">
+      <h2>2. Fazer Login</h2>
+      <input
+        type="email"
+        id="loginEmail"
+        placeholder="Email"
+        value="admin@teste.com"
+      />
+      <input
+        type="password"
+        id="loginPassword"
+        placeholder="Senha"
+        value="123456789"
+      />
+      <button onclick="loginUser()">Login</button>
+      <div id="loginResult" class="result"></div>
+    </div>
+
+    <script>
+      async function createUser() {
+        const result = document.getElementById("regResult");
+        result.innerHTML = "Criando usuário...";
+
+        try {
+          const response = await fetch("/api/auth/sign-up/email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: document.getElementById("regName").value,
+              email: document.getElementById("regEmail").value,
+              password: document.getElementById("regPassword").value,
+            }),
+          });
+
+          const data = await response.text();
+
+          if (response.ok) {
+            result.className = "result success";
+            result.innerHTML = "Usuário criado com sucesso!<br>" + data;
+          } else {
+            result.className = "result error";
+            result.innerHTML = `Erro ${response.status}: ${data}`;
+          }
+        } catch (error) {
+          result.className = "result error";
+          result.innerHTML = "Erro: " + error.message;
+        }
+      }
+
+      async function loginUser() {
+        const result = document.getElementById("loginResult");
+        result.innerHTML = "Fazendo login...";
+
+        try {
+          const response = await fetch("/api/auth/sign-in/email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: document.getElementById("loginEmail").value,
+              password: document.getElementById("loginPassword").value,
+            }),
+          });
+
+          const data = await response.text();
+
+          if (response.ok) {
+            result.className = "result success";
+            result.innerHTML = "Login realizado com sucesso!<br>" + data;
+          } else {
+            result.className = "result error";
+            result.innerHTML = `Erro ${response.status}: ${data}`;
+          }
+        } catch (error) {
+          result.className = "result error";
+          result.innerHTML = "Erro: " + error.message;
+        }
+      }
+    </script>
+  </body>
+</html>
