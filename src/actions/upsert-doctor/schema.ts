@@ -1,5 +1,44 @@
 import { z } from "zod";
 
+// Schema para horários de funcionamento por dia da semana
+const businessHoursSchema = z.object({
+  monday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  tuesday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  wednesday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  thursday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  friday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  saturday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+  sunday: z.object({
+    isOpen: z.boolean(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+  }),
+});
+
 export const upsertDoctorSchema = z
   .object({
     id: z.string().uuid().optional(),
@@ -16,23 +55,32 @@ export const upsertDoctorSchema = z
     appointmentPriceInCents: z.number().min(1, {
       message: "Preço da consulta é obrigatório.",
     }),
-    availableFromWeekDay: z.number().min(0).max(6),
-    availableToWeekDay: z.number().min(0).max(6),
-    availableFromTime: z.string().min(1, {
-      message: "Hora de início é obrigatória.",
-    }),
-    availableToTime: z.string().min(1, {
-      message: "Hora de término é obrigatória.",
-    }),
+    // Novos campos para horários detalhados
+    businessHours: businessHoursSchema.optional(),
+    // Campos legados para compatibilidade (manter por enquanto)
+    availableFromWeekDay: z.number().min(0).max(6).optional(),
+    availableToWeekDay: z.number().min(0).max(6).optional(),
+    availableFromTime: z.string().optional(),
+    availableToTime: z.string().optional(),
   })
   .refine(
     (data) => {
-      return data.availableFromTime < data.availableToTime;
+      // Se usar o sistema novo de horários, validar que pelo menos um dia está aberto
+      if (data.businessHours) {
+        const hasOpenDay = Object.values(data.businessHours).some(
+          (day) => day.isOpen,
+        );
+        return hasOpenDay;
+      }
+      // Se usar o sistema legado, validar horários
+      if (data.availableFromTime && data.availableToTime) {
+        return data.availableFromTime < data.availableToTime;
+      }
+      return true;
     },
     {
-      message:
-        "O horário de início não pode ser anterior ao horário de término.",
-      path: ["availableToTime"],
+      message: "Pelo menos um dia deve estar disponível para atendimento.",
+      path: ["businessHours"],
     },
   );
 

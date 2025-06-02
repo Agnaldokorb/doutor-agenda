@@ -55,11 +55,18 @@ const formatPhoneNumber = (phone: string) => {
   return phone;
 };
 
-export const ClinicConfigurationCard = () => {
-  const [showForm, setShowForm] = useState(false);
+export const ClinicConfigurationCard = ({ forceEditMode = false }: { forceEditMode?: boolean }) => {
+  const [showForm, setShowForm] = useState(forceEditMode);
   const [clinicData, setClinicData] = useState<Clinic | null>(null);
   const [isLoadingClinic, setIsLoadingClinic] = useState(true);
   const session = authClient.useSession();
+
+  // Abrir formulário quando forceEditMode muda para true
+  useEffect(() => {
+    if (forceEditMode) {
+      setShowForm(true);
+    }
+  }, [forceEditMode]);
 
   // Carregar dados da clínica ao montar componente
   useEffect(() => {

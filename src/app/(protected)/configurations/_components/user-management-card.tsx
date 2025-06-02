@@ -63,9 +63,13 @@ type User = {
   } | null;
 };
 
-export const UserManagementCard = () => {
+export const UserManagementCard = ({
+  forceCreateModal = false,
+}: {
+  forceCreateModal?: boolean;
+}) => {
   const [showUserList, setShowUserList] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(forceCreateModal);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,6 +106,13 @@ export const UserManagementCard = () => {
   useEffect(() => {
     executeGetUsers();
   }, [executeGetUsers]);
+
+  // Abrir modal quando forceCreateModal muda para true
+  useEffect(() => {
+    if (forceCreateModal) {
+      setIsCreateModalOpen(true);
+    }
+  }, [forceCreateModal]);
 
   const reloadUsers = () => {
     setIsLoading(true);

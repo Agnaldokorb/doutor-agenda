@@ -68,6 +68,11 @@ export const getDoctorAppointments = actionClient.action(async () => {
         name: doctor.name,
         specialty: doctor.specialty,
         email: doctor.email,
+        businessHours: doctor.businessHours,
+        availableFromTime: doctor.availableFromTime,
+        availableToTime: doctor.availableToTime,
+        availableFromWeekDay: doctor.availableFromWeekDay,
+        availableToWeekDay: doctor.availableToWeekDay,
       },
       appointments,
     };

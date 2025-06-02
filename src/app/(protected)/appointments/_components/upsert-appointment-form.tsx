@@ -48,9 +48,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { doctorsTable, patientsTable } from "@/db/schema";
+import { convertBusinessHoursFromUTC } from "@/helpers/timezone";
 import { cn } from "@/lib/utils";
 
-import { Appointment } from ".//table-columns";
+import { Appointment } from "./table-columns";
 
 // Estender dayjs com os plugins necessários
 dayjs.extend(utc);
@@ -93,6 +94,9 @@ const UpsertAppointmentForm = ({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [dailyBookedCounts, setDailyBookedCounts] = useState<
+    Record<string, number>
+  >({});
 
   // Extrair o horário da data do agendamento se existir (convertendo UTC para UTC-3)
   const getTimeFromDate = (date?: Date): string => {
@@ -127,7 +131,7 @@ const UpsertAppointmentForm = ({
     return doctors.find((doc) => doc.id === watchDoctorId);
   }, [watchDoctorId, doctors]);
 
-  // Buscar agendamentos existentes quando a data e o médico são selecionados
+  // Busca os horários já ocupados quando mudam doctor e data
   useEffect(() => {
     const fetchBookedSlots = async () => {
       if (!watchDoctorId || !watchDate) {
@@ -136,57 +140,88 @@ const UpsertAppointmentForm = ({
       }
 
       setIsLoadingSlots(true);
+
       try {
-        // Criar data no início e fim do dia
-        const selectedDate = dayjs(watchDate).format("YYYY-MM-DD");
-
-        console.log("Buscando horários ocupados para:", {
-          doctorId: watchDoctorId,
-          date: selectedDate,
-        });
-
-        // Buscar todos os agendamentos do médico para a data selecionada
+        const dateStr = watchDate.toISOString().split("T")[0]; // YYYY-MM-DD
         const response = await fetch(
-          `/api/appointments/booked-slots?doctorId=${watchDoctorId}&date=${selectedDate}`,
-          {
-            // Adicionar cabeçalho de cache para evitar problemas de cache
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-            },
-          },
+          `/api/appointments/booked-slots?doctorId=${watchDoctorId}&date=${dateStr}`,
         );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error("Resposta da API não ok:", response.status, errorData);
-          throw new Error(
-            errorData.error || "Falha ao buscar horários ocupados",
-          );
+        if (response.ok) {
+          const data = await response.json();
+          setBookedSlots(data.bookedSlots || []);
+        } else {
+          console.error("Erro ao buscar horários ocupados:", response.status);
+          setBookedSlots([]);
         }
-
-        const data = await response.json();
-        console.log("Horários ocupados recebidos:", data);
-        setBookedSlots(data.bookedSlots || []);
       } catch (error) {
         console.error("Erro ao buscar horários ocupados:", error);
-        toast.error(
-          "Erro ao verificar disponibilidade de horários. Usando todos os horários disponíveis.",
-        );
-        // Em caso de erro, continuamos com a lista vazia para permitir a seleção de qualquer horário
         setBookedSlots([]);
       } finally {
         setIsLoadingSlots(false);
       }
     };
 
-    // Definir um timeout para evitar chamadas muito frequentes à API
+    // Debounce para evitar muitas requisições
     const timeoutId = setTimeout(() => {
       fetchBookedSlots();
     }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [watchDoctorId, watchDate]);
+
+  // Buscar contagem de agendamentos para o mês do calendário
+  useEffect(() => {
+    const fetchMonthlyBookedCounts = async () => {
+      if (!selectedDoctor) {
+        setDailyBookedCounts({});
+        return;
+      }
+
+      try {
+        const today = new Date();
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(
+          today.getFullYear(),
+          today.getMonth() + 2,
+          0,
+        ); // +2 meses para incluir próximo mês
+
+        const promises = [];
+        const currentDate = new Date(startOfMonth);
+
+        while (currentDate <= endOfMonth) {
+          const dateStr = currentDate.toISOString().split("T")[0];
+          promises.push(
+            fetch(
+              `/api/appointments/booked-slots?doctorId=${selectedDoctor.id}&date=${dateStr}`,
+            )
+              .then((res) => res.json())
+              .then((data) => ({
+                date: dateStr,
+                count: data.bookedSlots?.length || 0,
+              }))
+              .catch(() => ({ date: dateStr, count: 0 })),
+          );
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        const results = await Promise.all(promises);
+        const counts: Record<string, number> = {};
+        results.forEach((result) => {
+          counts[result.date] = result.count;
+        });
+        setDailyBookedCounts(counts);
+      } catch (error) {
+        console.error("Erro ao buscar contagens mensais:", error);
+        setDailyBookedCounts({});
+      }
+    };
+
+    if (selectedDoctor) {
+      fetchMonthlyBookedCounts();
+    }
+  }, [selectedDoctor]);
 
   // Função para verificar se um horário está ocupado
   const isTimeSlotBooked = useCallback(
@@ -205,32 +240,107 @@ const UpsertAppointmentForm = ({
     [appointment, watchDoctorId, bookedSlots],
   );
 
-  // Gera os horários disponíveis com base no médico selecionado
+  // Função para obter os horários de funcionamento do médico para um dia específico
+  const getDoctorHoursForDay = (
+    doctor: typeof doctorsTable.$inferSelect,
+    dayOfWeek: number,
+  ) => {
+    // Mapear dia da semana JS (0=domingo) para os nomes dos dias
+    const dayNames = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+    const dayName = dayNames[dayOfWeek];
+
+    // Se o médico tem businessHours (novo sistema)
+    if (doctor.businessHours) {
+      try {
+        // Converter de UTC para UTC-3 para exibição
+        const businessHours = convertBusinessHoursFromUTC(doctor.businessHours);
+
+        if (
+          !businessHours ||
+          !businessHours[dayName] ||
+          !businessHours[dayName].isOpen
+        ) {
+          return null; // Médico não atende neste dia
+        }
+
+        return {
+          startTime: businessHours[dayName].startTime,
+          endTime: businessHours[dayName].endTime,
+        };
+      } catch (error) {
+        console.error("Erro ao processar businessHours:", error);
+        return null;
+      }
+    }
+
+    // Fallback para sistema legado
+    const fromDay = doctor.availableFromWeekDay;
+    const toDay = doctor.availableToWeekDay;
+
+    // Verificar se o dia está no intervalo de disponibilidade
+    let isDayAvailable = false;
+    if (fromDay <= toDay) {
+      isDayAvailable = dayOfWeek >= fromDay && dayOfWeek <= toDay;
+    } else {
+      // Intervalo que cruza o fim de semana
+      isDayAvailable = dayOfWeek >= fromDay || dayOfWeek <= toDay;
+    }
+
+    if (!isDayAvailable) {
+      return null;
+    }
+
+    // Converter horários legados de UTC para UTC-3
+    const convertLegacyTime = (timeStr: string) => {
+      if (!timeStr) return "";
+      const [hours, minutes, seconds = "00"] = timeStr.split(":");
+      const utcTime = new Date();
+      utcTime.setUTCHours(
+        parseInt(hours),
+        parseInt(minutes),
+        parseInt(seconds),
+        0,
+      );
+      const localTime = new Date(utcTime.getTime() - 3 * 60 * 60 * 1000);
+      const localHours = localTime.getUTCHours().toString().padStart(2, "0");
+      const localMinutes = localTime
+        .getUTCMinutes()
+        .toString()
+        .padStart(2, "0");
+      return `${localHours}:${localMinutes}`;
+    };
+
+    return {
+      startTime: convertLegacyTime(doctor.availableFromTime),
+      endTime: convertLegacyTime(doctor.availableToTime),
+    };
+  };
+
+  // Gera os horários disponíveis com base no médico selecionado e data
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDoctor) return [];
+    if (!selectedDoctor || !watchDate) return [];
 
-    // Obter os horários de disponibilidade do médico
-    const fromTimeStr = selectedDoctor.availableFromTime;
-    const toTimeStr = selectedDoctor.availableToTime;
+    const dayOfWeek = watchDate.getDay();
+    const doctorHours = getDoctorHoursForDay(selectedDoctor, dayOfWeek);
 
-    // Verificar se os horários estão no formato esperado
-    if (!fromTimeStr || !toTimeStr) return [];
+    if (!doctorHours || !doctorHours.startTime || !doctorHours.endTime) {
+      return []; // Médico não atende neste dia
+    }
 
     try {
-      // Extrair horas, minutos e segundos
-      const fromParts = fromTimeStr.split(":");
-      const toParts = toTimeStr.split(":");
-
-      if (fromParts.length < 2 || toParts.length < 2) {
-        console.error("Formato de hora inválido:", fromTimeStr, toTimeStr);
-        return [];
-      }
-
-      const fromHour = parseInt(fromParts[0], 10);
-      const fromMinute = parseInt(fromParts[1], 10);
-
-      const toHour = parseInt(toParts[0], 10);
-      const toMinute = parseInt(toParts[1], 10);
+      // Parse dos horários
+      const [fromHour, fromMinute] = doctorHours.startTime
+        .split(":")
+        .map(Number);
+      const [toHour, toMinute] = doctorHours.endTime.split(":").map(Number);
 
       if (
         isNaN(fromHour) ||
@@ -238,24 +348,21 @@ const UpsertAppointmentForm = ({
         isNaN(toHour) ||
         isNaN(toMinute)
       ) {
-        console.error("Valores de hora inválidos:", fromTimeStr, toTimeStr);
+        console.error("Valores de hora inválidos:", doctorHours);
         return [];
       }
-      
-      // Criar horário de início
+
+      // Criar horários
       const startTime = new Date();
       startTime.setHours(fromHour, fromMinute, 0, 0);
 
-      // Criar horário de término
       const endTime = new Date();
       endTime.setHours(toHour, toMinute, 0, 0);
 
-      // Verificar se o horário final é maior que o inicial
       if (endTime <= startTime) {
         console.error(
           "Horário final deve ser maior que o inicial:",
-          fromTimeStr,
-          toTimeStr,
+          doctorHours,
         );
         return [];
       }
@@ -265,12 +372,11 @@ const UpsertAppointmentForm = ({
 
       // Gerar slots de 30 minutos
       while (currentTime < endTime) {
-        // Formatar o horário como string HH:MM:SS
         const hours = currentTime.getHours().toString().padStart(2, "0");
         const minutes = currentTime.getMinutes().toString().padStart(2, "0");
         const timeSlot = `${hours}:${minutes}:00`;
 
-        // Verificar se o horário já está ocupado usando a função auxiliar
+        // Verificar se o horário não está ocupado
         if (!isTimeSlotBooked(timeSlot)) {
           slots.push(timeSlot);
         }
@@ -284,7 +390,7 @@ const UpsertAppointmentForm = ({
       console.error("Erro ao processar horários:", error);
       return [];
     }
-  }, [selectedDoctor, isTimeSlotBooked]);
+  }, [selectedDoctor, watchDate, isTimeSlotBooked]);
 
   // Função para verificar se uma data é válida com base na disponibilidade do médico
   const isDateAvailable = (date: Date): boolean => {
@@ -296,19 +402,32 @@ const UpsertAppointmentForm = ({
     // Verificar se a data é hoje ou no futuro
     if (date < today) return false;
 
-    const dayOfWeek = date.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    const dayOfWeek = date.getDay();
+    const doctorHours = getDoctorHoursForDay(selectedDoctor, dayOfWeek);
 
-    // Verificar se o dia da semana está dentro do intervalo de disponibilidade do médico
-    const fromDay = selectedDoctor.availableFromWeekDay;
-    const toDay = selectedDoctor.availableToWeekDay;
+    // Se não tem horários para este dia, não está disponível
+    return doctorHours !== null;
+  };
 
-    // Lidar com intervalos que cruzam o fim de semana
-    if (fromDay <= toDay) {
-      return dayOfWeek >= fromDay && dayOfWeek <= toDay;
-    } else {
-      // Ex: disponível de sexta (5) a segunda (1)
-      return dayOfWeek >= fromDay || dayOfWeek <= toDay;
+  // Função para verificar se uma data está lotada
+  const isDateFullyBooked = (date: Date): boolean => {
+    if (!selectedDoctor) return false;
+
+    const dateStr = date.toISOString().split("T")[0];
+    const bookedCount = dailyBookedCounts[dateStr] || 0;
+    const totalSlots = getTotalSlotsForDay(date);
+
+    // Se for o dia do agendamento atual (edição), não considerar como lotado
+    if (appointment && appointment.date) {
+      const appointmentDateStr = new Date(appointment.date)
+        .toISOString()
+        .split("T")[0];
+      if (appointmentDateStr === dateStr) {
+        return bookedCount >= totalSlots + 1; // +1 porque estamos editando
+      }
     }
+
+    return totalSlots > 0 && bookedCount >= totalSlots;
   };
 
   // Atualiza o valor da consulta quando um médico é selecionado
@@ -397,7 +516,7 @@ const UpsertAppointmentForm = ({
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    console.log("Valores do formulário:", values);
+    console.log("📊 Valores do formulário (UTC-3):", values);
 
     // Criar a data completa combinando a data e o horário selecionado
     const appointmentDate = new Date(values.date);
@@ -407,7 +526,7 @@ const UpsertAppointmentForm = ({
     appointmentDate.setHours(hours, minutes, 0, 0);
 
     console.log(
-      "Data/hora local (UTC-3) para enviar:",
+      "🕐 Data/hora local (UTC-3) para enviar:",
       appointmentDate.toISOString(),
     );
 
@@ -416,6 +535,41 @@ const UpsertAppointmentForm = ({
       date: appointmentDate,
       id: appointment?.id, // Passa o ID se estiver editando
     });
+  };
+
+  // Calcula o total de slots possíveis para um dia
+  const getTotalSlotsForDay = (date: Date): number => {
+    if (!selectedDoctor) return 0;
+
+    const dayOfWeek = date.getDay();
+    const doctorHours = getDoctorHoursForDay(selectedDoctor, dayOfWeek);
+
+    if (!doctorHours || !doctorHours.startTime || !doctorHours.endTime) {
+      return 0;
+    }
+
+    try {
+      const [fromHour, fromMinute] = doctorHours.startTime
+        .split(":")
+        .map(Number);
+      const [toHour, toMinute] = doctorHours.endTime.split(":").map(Number);
+
+      const startTime = new Date();
+      startTime.setHours(fromHour, fromMinute, 0, 0);
+
+      const endTime = new Date();
+      endTime.setHours(toHour, toMinute, 0, 0);
+
+      if (endTime <= startTime) return 0;
+
+      // Calcular número de slots de 30 minutos
+      const diffMs = endTime.getTime() - startTime.getTime();
+      const slots = Math.floor(diffMs / (30 * 60 * 1000));
+      return slots;
+    } catch (error) {
+      console.error("Erro ao calcular slots totais:", error);
+      return 0;
+    }
   };
 
   return (
@@ -430,6 +584,7 @@ const UpsertAppointmentForm = ({
             : "Preencha os dados para criar um novo agendamento."}
         </DialogDescription>
       </DialogHeader>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -545,16 +700,59 @@ const UpsertAppointmentForm = ({
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
+                    <div className="border-b p-3">
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded border border-green-200 bg-green-50"></div>
+                          <span>Disponível</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded border border-orange-200 bg-orange-100"></div>
+                          <span>Agenda lotada</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded border border-red-200 bg-red-100"></div>
+                          <span>Médico não atende</span>
+                        </div>
+                      </div>
+                    </div>
                     <Calendar
                       mode="single"
                       selected={field.value}
                       onSelect={(date) => {
-                        if (date) {
+                        if (
+                          date &&
+                          isDateAvailable(date) &&
+                          !isDateFullyBooked(date)
+                        ) {
                           field.onChange(date);
                           setCalendarOpen(false);
+                          // Limpar horário quando a data mudar
+                          form.setValue("timeSlot", "");
                         }
                       }}
-                      disabled={(date) => !isDateAvailable(date)}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return (
+                          date < today ||
+                          !isDateAvailable(date) ||
+                          isDateFullyBooked(date)
+                        );
+                      }}
+                      modifiers={{
+                        available: (date) =>
+                          isDateAvailable(date) && !isDateFullyBooked(date),
+                        fullyBooked: (date) =>
+                          isDateAvailable(date) && isDateFullyBooked(date),
+                        unavailable: (date) => !isDateAvailable(date),
+                      }}
+                      modifiersClassNames={{
+                        available:
+                          "!bg-green-50 !text-green-700 hover:!bg-green-100 hover:!text-green-800",
+                        fullyBooked: "!bg-orange-100 !text-orange-600",
+                        unavailable: "!bg-red-100 !text-red-400",
+                      }}
                       initialFocus
                       locale={ptBR}
                       fromDate={new Date()} // Não permite datas anteriores a hoje
@@ -571,7 +769,14 @@ const UpsertAppointmentForm = ({
             name="timeSlot"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Horário</FormLabel>
+                <FormLabel>
+                  Horário{" "}
+                  {selectedDoctor && watchDate && (
+                    <span className="text-xs text-gray-500">
+                      (horários em UTC-3 - Brasília)
+                    </span>
+                  )}
+                </FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
@@ -589,7 +794,11 @@ const UpsertAppointmentForm = ({
                         placeholder={
                           isLoadingSlots
                             ? "Carregando horários..."
-                            : "Selecione um horário"
+                            : !watchDate
+                              ? "Selecione uma data primeiro"
+                              : availableTimeSlots.length === 0
+                                ? "Médico não atende neste dia"
+                                : "Selecione um horário"
                         }
                       />
                     </SelectTrigger>
@@ -606,7 +815,9 @@ const UpsertAppointmentForm = ({
                       <SelectItem value="no-slots" disabled>
                         {isLoadingSlots
                           ? "Carregando horários..."
-                          : "Nenhum horário disponível"}
+                          : !watchDate
+                            ? "Selecione uma data primeiro"
+                            : "Nenhum horário disponível neste dia"}
                       </SelectItem>
                     )}
                   </SelectContent>
@@ -617,8 +828,17 @@ const UpsertAppointmentForm = ({
           />
 
           <DialogFooter>
-            <Button type="submit" className="w-full">
-              {appointment ? "Atualizar" : "Criar"} Agendamento
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={upsertAppointmentAction.isExecuting}
+            >
+              {upsertAppointmentAction.isExecuting
+                ? "Salvando..."
+                : appointment
+                  ? "Atualizar"
+                  : "Criar"}{" "}
+              Agendamento
             </Button>
           </DialogFooter>
         </form>

@@ -4,10 +4,11 @@ import {
   CalendarIcon,
   ClockIcon,
   DollarSignIcon,
+  EditIcon,
   TrashIcon,
 } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
-import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { deleteDoctor } from "@/actions/delete-doctor";
@@ -31,21 +32,17 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { doctorsTable } from "@/db/schema";
 import { formatCurrencyInCents } from "@/helpers/currency";
 
 import { getAvailability } from "../_helpers/availability";
-import UpsertDoctorForm from "./upsert-doctor-form";
 
 interface DoctorCardProps {
   doctor: typeof doctorsTable.$inferSelect;
 }
 
 const DoctorCard = ({ doctor }: DoctorCardProps) => {
-  const [isUpsertDoctorDialogOpen, setIsUpsertDoctorDialogOpen] =
-    useState(false);
   const deleteDoctorAction = useAction(deleteDoctor, {
     onSuccess: () => {
       toast.success("Médico deletado com sucesso.");
@@ -63,6 +60,7 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
       toast.error("Erro ao deletar médico.");
     },
   });
+
   const handleDeleteDoctorClick = () => {
     if (!doctor) return;
     deleteDoctorAction.execute({ id: doctor.id });
@@ -72,10 +70,39 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
     .split(" ")
     .map((name) => name[0])
     .join("");
+
   const availability = getAvailability(doctor);
 
+  // Obter resumo dos dias de atendimento
+  const openDays = availability.schedule.filter((day) => day.isOpen);
+  const getScheduleSummary = () => {
+    if (openDays.length === 0) {
+      return "Nenhum dia configurado";
+    }
+
+    if (openDays.length === 7) {
+      return "Todos os dias";
+    }
+
+    if (openDays.length <= 3) {
+      return openDays.map((day) => day.dayName).join(", ");
+    }
+
+    return `${openDays.length} dias por semana`;
+  };
+
+  // Obter horário mais comum ou primeiro horário
+  const getMainSchedule = () => {
+    if (openDays.length === 0) {
+      return "Não configurado";
+    }
+
+    const firstDay = openDays[0];
+    return `${firstDay.startTime} às ${firstDay.endTime}`;
+  };
+
   return (
-    <Card>
+    <Card className="transition-shadow duration-200 hover:shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Avatar className="h-10 w-10">
@@ -87,51 +114,84 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
             )}
             <AvatarFallback>{doctorInitials}</AvatarFallback>
           </Avatar>
-          <div>
-            <h3 className="text-sm font-medium">{doctor.name}</h3>
-            <p className="text-muted-foreground text-sm">{doctor.specialty}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-medium">{doctor.name}</h3>
+            <p className="text-muted-foreground truncate text-sm">
+              {doctor.specialty}
+            </p>
           </div>
         </div>
       </CardHeader>
       <Separator />
-      <CardContent className="flex flex-col gap-2">
-        <Badge variant="outline">
-          <CalendarIcon className="mr-1" />
-          {availability.from.format("dddd")} a {availability.to.format("dddd")}
-        </Badge>
-        <Badge variant="outline">
-          <ClockIcon className="mr-1" />
-          {availability.from.format("HH:mm")} as{" "}
-          {availability.to.format("HH:mm")}
-        </Badge>
-        <Badge variant="outline">
-          <DollarSignIcon className="mr-1" />
-          {formatCurrencyInCents(doctor.appointmentPriceInCents)}
-        </Badge>
+      <CardContent className="space-y-3">
+        {/* Badge de dias de atendimento */}
+        <div className="flex items-start gap-2">
+          <CalendarIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-900">
+              Dias de atendimento
+            </p>
+            <p className="text-xs text-gray-600">{getScheduleSummary()}</p>
+          </div>
+        </div>
+
+        {/* Badge de horários */}
+        <div className="flex items-start gap-2">
+          <ClockIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-900">Horários</p>
+            <p className="text-xs text-gray-600">{getMainSchedule()}</p>
+            {availability.hasBusinessHours && openDays.length > 1 && (
+              <p className="text-xs text-gray-500 italic">+ outros horários</p>
+            )}
+          </div>
+        </div>
+
+        {/* Badge de preço */}
+        <div className="flex items-start gap-2">
+          <DollarSignIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-900">
+              Valor da consulta
+            </p>
+            <p className="text-xs text-gray-600">
+              {formatCurrencyInCents(doctor.appointmentPriceInCents)}
+            </p>
+          </div>
+        </div>
+
+        {/* Status do sistema de horários */}
+        <div className="pt-2">
+          <Badge
+            variant={availability.hasBusinessHours ? "default" : "secondary"}
+            className="text-xs"
+          >
+            {availability.hasBusinessHours ? (
+              <>
+                <div className="mr-1.5 h-2 w-2 rounded-full bg-green-500"></div>
+                Horários avançados
+              </>
+            ) : (
+              <>
+                <div className="mr-1.5 h-2 w-2 rounded-full bg-gray-400"></div>
+                Sistema legado
+              </>
+            )}
+          </Badge>
+        </div>
       </CardContent>
       <Separator />
       <CardFooter className="flex flex-col gap-2">
-        <Dialog
-          open={isUpsertDoctorDialogOpen}
-          onOpenChange={setIsUpsertDoctorDialogOpen}
-        >
-          <DialogTrigger asChild>
-            <Button className="w-full">Ver detalhes</Button>
-          </DialogTrigger>
-          <UpsertDoctorForm
-            doctor={{
-              ...doctor,
-              availableFromTime: availability.from.format("HH:mm:ss"),
-              availableToTime: availability.to.format("HH:mm:ss"),
-            }}
-            onSuccess={() => setIsUpsertDoctorDialogOpen(false)}
-            isOpen={isUpsertDoctorDialogOpen}
-          />
-        </Dialog>
+        <Link href={`/doctors/${doctor.id}/edit`} className="w-full">
+          <Button className="w-full gap-2">
+            <EditIcon className="h-4 w-4" />
+            Editar médico
+          </Button>
+        </Link>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" className="w-full">
-              <TrashIcon className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full gap-2">
+              <TrashIcon className="h-4 w-4" />
               Deletar médico
             </Button>
           </AlertDialogTrigger>
@@ -147,8 +207,11 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteDoctorClick}>
-                Deletar
+              <AlertDialogAction
+                onClick={handleDeleteDoctorClick}
+                disabled={deleteDoctorAction.isExecuting}
+              >
+                {deleteDoctorAction.isExecuting ? "Deletando..." : "Deletar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/db";
 import { doctorsTable, usersTable, usersToClinicsTable } from "@/db/schema";
+import { convertBusinessHoursToUTC } from "@/helpers/timezone";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 import { deleteFileByUrl } from "@/lib/utapi";
@@ -19,19 +20,79 @@ dayjs.extend(utc);
 export const upsertDoctor = actionClient
   .schema(upsertDoctorSchema)
   .action(async ({ parsedInput }) => {
-    const availableFromTime = parsedInput.availableFromTime; // 15:30:00
-    const availableToTime = parsedInput.availableToTime; // 16:00:00
+    console.log("📊 Dados recebidos:", parsedInput);
 
-    const availableFromTimeUTC = dayjs()
-      .set("hour", parseInt(availableFromTime.split(":")[0]))
-      .set("minute", parseInt(availableFromTime.split(":")[1]))
-      .set("second", parseInt(availableFromTime.split(":")[2]))
-      .utc();
-    const availableToTimeUTC = dayjs()
-      .set("hour", parseInt(availableToTime.split(":")[0]))
-      .set("minute", parseInt(availableToTime.split(":")[1]))
-      .set("second", parseInt(availableToTime.split(":")[2]))
-      .utc();
+    // Calcular valores legados para compatibilidade
+    let availableFromTimeUTC = "08:00:00";
+    let availableToTimeUTC = "18:00:00";
+    let availableFromWeekDay = 1; // Segunda
+    let availableToWeekDay = 5; // Sexta
+
+    // Se usando novo sistema de horários
+    if (parsedInput.businessHours) {
+      console.log("🕐 Convertendo horários de negócio para UTC...");
+
+      // Converter horários para UTC
+      const businessHoursUTC = convertBusinessHoursToUTC(
+        parsedInput.businessHours,
+      );
+
+      // Encontrar primeiro e último dia com atendimento
+      const days = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const openDays = days
+        .map((day, index) => ({
+          day,
+          index,
+          data: businessHoursUTC[day],
+        }))
+        .filter((d) => d.data && d.data.isOpen);
+
+      if (openDays.length > 0) {
+        availableFromWeekDay = openDays[0].index;
+        availableToWeekDay = openDays[openDays.length - 1].index;
+        availableFromTimeUTC = openDays[0].data.startTime || "08:00:00";
+        availableToTimeUTC =
+          openDays[openDays.length - 1].data.endTime || "18:00:00";
+      }
+
+      console.log("🕐 Horários convertidos:", {
+        availableFromWeekDay,
+        availableToWeekDay,
+        availableFromTimeUTC,
+        availableToTimeUTC,
+      });
+    } else if (parsedInput.availableFromTime && parsedInput.availableToTime) {
+      // Sistema legado - converter horários UTC-3 para UTC
+      console.log("🕐 Usando sistema legado de horários...");
+
+      const availableFromTimeLocal = parsedInput.availableFromTime;
+      const availableToTimeLocal = parsedInput.availableToTime;
+
+      const availableFromTimeUTCObj = dayjs()
+        .set("hour", parseInt(availableFromTimeLocal.split(":")[0]))
+        .set("minute", parseInt(availableFromTimeLocal.split(":")[1]))
+        .set("second", parseInt(availableFromTimeLocal.split(":")[2] || "0"))
+        .utc();
+
+      const availableToTimeUTCObj = dayjs()
+        .set("hour", parseInt(availableToTimeLocal.split(":")[0]))
+        .set("minute", parseInt(availableToTimeLocal.split(":")[1]))
+        .set("second", parseInt(availableToTimeLocal.split(":")[2] || "0"))
+        .utc();
+
+      availableFromTimeUTC = availableFromTimeUTCObj.format("HH:mm:ss");
+      availableToTimeUTC = availableToTimeUTCObj.format("HH:mm:ss");
+      availableFromWeekDay = parsedInput.availableFromWeekDay || 1;
+      availableToWeekDay = parsedInput.availableToWeekDay || 5;
+    }
 
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -74,10 +135,15 @@ export const upsertDoctor = actionClient
         // Definir tipo do usuário como "doctor"
         await db
           .update(usersTable)
-          .set({ userType: "doctor" })
+          .set({
+            userType: "doctor",
+            mustChangePassword: true, // Forçar alteração de senha no primeiro login
+          })
           .where(eq(usersTable.id, userId));
 
-        console.log(`✅ Tipo do usuário definido como doctor`);
+        console.log(
+          `✅ Tipo do usuário definido como doctor com alteração de senha obrigatória`,
+        );
 
         // Associar usuário à clínica
         await db.insert(usersToClinicsTable).values({
@@ -159,7 +225,10 @@ export const upsertDoctor = actionClient
           // Definir tipo como doctor
           await db
             .update(usersTable)
-            .set({ userType: "doctor" })
+            .set({
+              userType: "doctor",
+              mustChangePassword: true, // Forçar alteração de senha no primeiro login
+            })
             .where(eq(usersTable.id, userId));
 
           // Associar à clínica
@@ -201,26 +270,48 @@ export const upsertDoctor = actionClient
       }
     }
 
+    // Preparar dados para salvar no banco
+    const businessHoursJSON = parsedInput.businessHours
+      ? JSON.stringify(convertBusinessHoursToUTC(parsedInput.businessHours))
+      : null;
+
     // Agora criar/atualizar o médico com userId obrigatório
     console.log(`👨‍⚕️ Salvando médico na base de dados...`);
 
     await db
       .insert(doctorsTable)
       .values({
-        ...parsedInput,
         id: parsedInput.id,
+        name: parsedInput.name,
+        email: parsedInput.email,
+        avatarImageUrl: parsedInput.avatarImageUrl,
+        specialty: parsedInput.specialty,
+        appointmentPriceInCents: parsedInput.appointmentPriceInCents,
         userId: userId, // Sempre terá valor
         clinicId: session.user.clinic.id,
-        availableFromTime: availableFromTimeUTC.format("HH:mm:ss"),
-        availableToTime: availableToTimeUTC.format("HH:mm:ss"),
+        availableFromWeekDay,
+        availableToWeekDay,
+        availableFromTime: availableFromTimeUTC,
+        availableToTime: availableToTimeUTC,
+        businessHours: businessHoursJSON,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [doctorsTable.id],
         set: {
-          ...parsedInput,
+          name: parsedInput.name,
+          email: parsedInput.email,
+          avatarImageUrl: parsedInput.avatarImageUrl,
+          specialty: parsedInput.specialty,
+          appointmentPriceInCents: parsedInput.appointmentPriceInCents,
           userId: userId, // Sempre terá valor
-          availableFromTime: availableFromTimeUTC.format("HH:mm:ss"),
-          availableToTime: availableToTimeUTC.format("HH:mm:ss"),
+          availableFromWeekDay,
+          availableToWeekDay,
+          availableFromTime: availableFromTimeUTC,
+          availableToTime: availableToTimeUTC,
+          businessHours: businessHoursJSON,
+          updatedAt: new Date(),
         },
       });
 

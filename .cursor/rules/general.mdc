@@ -39,3 +39,40 @@ React/Next.js
 - Ao criar páginas, use os componentes dentro de [page-container.tsx](mdc:src/components/ui/page-container.tsx) para manter os padrões de margin, padding e spacing nas páginas. Exemplo: [page.tsx](mdc:src/app/(protected)/doctors/page.tsx).
 
 - Sempre use a biblioteca "react-number-format" ao criar máscaras para inputs.
+
+Todos os horários são armazenados no banco de dados no padrão UTC.
+Quando a server action for buscar ou exibir horários para o usuário, deve converter de UTC para o fuso horário "UTC-3" (América/São_Paulo).
+
+Por outro lado, quando o usuário selecionar ou inserir um horário (como ao criar ou editar um agendamento), esse horário estará no fuso América/São_Paulo (UTC-3) e deve ser convertido para UTC antes de ser salvo no banco.
+
+Resumindo:
+
+Leitura (banco → usuário): UTC → UTC-3 (América/São_Paulo)
+
+Escrita (usuário → banco): UTC-3 (América/São_Paulo) → UTC
+
+# (LGPD – Conformidade Obrigatória)
+
+-# Ao analisar, sugerir, desenvolver ou recomendar qualquer solução de software do tipo SaaS (Software as a Service), é obrigatória a verificação de conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD) – Lei nº 13.709/2018.
+
+Garanta que:
+
+O tratamento de dados pessoais esteja de acordo com os princípios da LGPD;
+
+Haja mecanismos de controle de consentimento, anonimização, portabilidade e exclusão de dados;
+
+O SaaS possua política de privacidade clara e em conformidade com a legislação brasileira;
+
+O fornecedor do SaaS informe sobre medidas de segurança da informação adotadas;
+
+Seja possível identificar o Encarregado pelo Tratamento de Dados (DPO);
+
+O armazenamento de dados em nuvem considere a transferência internacional e os requisitos legais correspondentes.
+
+Consulte e vincule sempre que possível fontes oficiais sobre a LGPD, como:
+
+Portal oficial da LGPD no Governo Federal: https://www.gov.br/anpd/
+
+Texto completo da LGPD atualizado: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709.htm
+
+Resoluções e orientações da ANPD: https://www.gov.br/anpd/pt-br/assuntos/normas-e-guias

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { doctorsTable,usersTable, usersToClinicsTable } from "@/db/schema";
+import { usersTable, usersToClinicsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -66,31 +66,12 @@ export const createUser = actionClient
 
       console.log(`✅ Usuário associado à clínica`);
 
-      // 4. Se for médico, criar registro na tabela doctors
-      if (parsedInput.userType === "doctor") {
-        await db.insert(doctorsTable).values({
-          clinicId: session.user.clinic.id,
-          userId: userResponse.user.id,
-          name: parsedInput.name,
-          email: parsedInput.email,
-          specialty: parsedInput.specialty!,
-          appointmentPriceInCents: parsedInput.appointmentPriceInCents!,
-          availableFromWeekDay: parsedInput.availableFromWeekDay!,
-          availableToWeekDay: parsedInput.availableToWeekDay!,
-          availableFromTime: parsedInput.availableFromTime!,
-          availableToTime: parsedInput.availableToTime!,
-        });
-
-        console.log(`✅ Registro de médico criado`);
-      }
-
       revalidatePath("/configurations");
-      revalidatePath("/doctors");
 
       return {
         success: true,
         userId: userResponse.user.id,
-        message: `Usuário ${parsedInput.userType} criado com sucesso!`,
+        message: `Usuário ${parsedInput.userType === "admin" ? "administrador" : "atendente"} criado com sucesso!`,
       };
     } catch (error) {
       console.error("❌ Erro ao criar usuário:", error);

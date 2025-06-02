@@ -1,25 +1,18 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-
-import UpsertDoctorForm from "./upsert-doctor-form";
 
 const AddDoctorButton = () => {
-  const [isOpen, setIsOpen] = useState(false);
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Adicionar médico
-        </Button>
-      </DialogTrigger>
-      <UpsertDoctorForm isOpen={isOpen} onSuccess={() => setIsOpen(false)} />
-    </Dialog>
+    <Link href="/doctors/new">
+      <Button className="gap-2">
+        <Plus className="h-4 w-4" />
+        Adicionar médico
+      </Button>
+    </Link>
   );
 };
 

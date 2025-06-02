@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, UserIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -10,8 +11,16 @@ import { z } from "zod";
 import { getPatientAppointments } from "@/actions/get-patient-appointments";
 import { upsertMedicalRecord } from "@/actions/upsert-medical-record";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -27,17 +36,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
-  appointmentId: z.string().optional(),
   symptoms: z.string().trim().min(1, {
     message: "Sintomas são obrigatórios.",
   }),
@@ -71,7 +72,6 @@ interface UpsertMedicalRecordFormProps {
   patientId: string;
   doctorId: string;
   medicalRecord?: MedicalRecord;
-  appointmentId?: string;
   onSuccess?: () => void;
 }
 
@@ -79,13 +79,11 @@ const UpsertMedicalRecordForm = ({
   patientId,
   doctorId,
   medicalRecord,
-  appointmentId,
   onSuccess,
 }: UpsertMedicalRecordFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      appointmentId: undefined,
       symptoms: "",
       diagnosis: "",
       treatment: "",
@@ -123,13 +121,12 @@ const UpsertMedicalRecordForm = ({
   // Buscar agendamentos quando o componente montar
   useEffect(() => {
     getPatientAppointmentsAction.execute({ patientId });
-  }, [patientId, getPatientAppointmentsAction]);
+  }, [patientId]);
 
   // Resetar o formulário quando receber um prontuário para editar
   useEffect(() => {
     if (medicalRecord) {
       form.reset({
-        appointmentId: medicalRecord.appointmentId || undefined,
         symptoms: medicalRecord.symptoms,
         diagnosis: medicalRecord.diagnosis,
         treatment: medicalRecord.treatment,
@@ -140,7 +137,6 @@ const UpsertMedicalRecordForm = ({
       });
     } else {
       form.reset({
-        appointmentId: appointmentId || undefined,
         symptoms: "",
         diagnosis: "",
         treatment: "",
@@ -150,13 +146,19 @@ const UpsertMedicalRecordForm = ({
         observations: "",
       });
     }
-  }, [medicalRecord, appointmentId, form]);
+  }, [medicalRecord, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Encontrar automaticamente o próximo agendamento disponível
+    const nextAvailableAppointment =
+      availableAppointments.find((apt) => apt.doctorId === doctorId) ||
+      availableAppointments[0]; // Prioriza agendamentos do médico atual, senão pega o primeiro disponível
+
     await upsertMedicalRecordAction.execute({
       id: medicalRecord?.id,
       patientId,
       doctorId,
+      appointmentId: nextAvailableAppointment?.id,
       ...values,
     });
   };
@@ -183,59 +185,26 @@ const UpsertMedicalRecordForm = ({
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Seleção de Agendamento (opcional) */}
-          {availableAppointments.length > 0 && (
-            <FormField
-              control={form.control}
-              name="appointmentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Relacionar a um agendamento (opcional)</FormLabel>
-                  <Select
-                    onValueChange={(value) =>
-                      field.onChange(value || undefined)
-                    }
-                    value={field.value || ""}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um agendamento" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {availableAppointments.map((appointment) => (
-                        <SelectItem key={appointment.id} value={appointment.id}>
-                          {(() => {
-                            const utcDate = new Date(appointment.date);
-                            const localDate = new Date(
-                              utcDate.getTime() - 3 * 60 * 60 * 1000,
-                            );
-                            return localDate.toLocaleDateString("pt-BR");
-                          })()}{" "}
-                          -{" "}
-                          {(() => {
-                            const utcDate = new Date(appointment.date);
-                            const localDate = new Date(
-                              utcDate.getTime() - 3 * 60 * 60 * 1000,
-                            );
-                            return localDate.toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            });
-                          })()}{" "}
-                          - Dr(a). {appointment.doctor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-muted-foreground text-sm">
-                    Ao relacionar a um agendamento, ele será automaticamente
-                    marcado como concluído.
+          {/* Informação sobre relacionamento automático */}
+          {availableAppointments.length > 0 && !medicalRecord && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center space-x-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+                  <span className="text-xs font-semibold text-blue-600">
+                    ℹ
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Relacionamento automático
                   </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <p className="text-sm text-blue-700">
+                    Este prontuário será automaticamente relacionado ao próximo
+                    agendamento pendente e o marcará como concluído.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

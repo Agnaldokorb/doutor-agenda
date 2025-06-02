@@ -295,7 +295,7 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
 
         {/* Grid de estatísticas melhorado */}
         <div
-          className={`grid gap-4 ${isCurrentMonth ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4"}`}
+          className={`grid gap-4 ${isCurrentMonth ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-5"}`}
         >
           <RevenueCards
             monthlyRevenue={Number(revenue[0]?.total) || 0}

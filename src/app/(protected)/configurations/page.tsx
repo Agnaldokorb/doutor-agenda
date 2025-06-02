@@ -10,7 +10,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +28,22 @@ import { ClinicConfigurationCard } from "./_components/clinic-configuration-card
 import { DatabaseBackupCard } from "./_components/database-backup-card";
 import { NotificationConfigurationCard } from "./_components/notification-configuration-card";
 import { SecurityConfigurationCard } from "./_components/security-configuration-card";
-import { SystemConfigurationCard } from "./_components/system-configuration-card";
 import { UserManagementCard } from "./_components/user-management-card";
 import { UserProfileCard } from "./_components/user-profile-card";
 
 const ConfigurationsPage = () => {
   const router = useRouter();
   const session = authClient.useSession();
+
+  // Refs para os cards principais
+  const clinicCardRef = useRef<HTMLDivElement>(null);
+  const userCardRef = useRef<HTMLDivElement>(null);
+  const backupCardRef = useRef<HTMLDivElement>(null);
+
+  // Estados para controlar abertura de modais/ações
+  const [openClinicForm, setOpenClinicForm] = useState(false);
+  const [openCreateUser, setOpenCreateUser] = useState(false);
+  const [triggerBackup, setTriggerBackup] = useState(false);
 
   // Verificar se o usuário está logado e é administrador
   useEffect(() => {
@@ -45,6 +54,43 @@ const ConfigurationsPage = () => {
       router.push("/dashboard");
     }
   }, [session.data, router]);
+
+  // Função para rolar até um card específico
+  const scrollToCard = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  // Handlers para as ações rápidas
+  const handleClinicDataClick = () => {
+    scrollToCard(clinicCardRef);
+    // Abrir formulário de edição da clínica
+    setOpenClinicForm(true);
+    // Reset após um tempo para permitir re-trigger
+    setTimeout(() => setOpenClinicForm(false), 100);
+  };
+
+  const handleCreateUserClick = () => {
+    scrollToCard(userCardRef);
+    // Abrir modal de criação de usuário
+    setOpenCreateUser(true);
+    // Reset após um tempo para permitir re-trigger
+    setTimeout(() => setOpenCreateUser(false), 100);
+  };
+
+  const handleBackupClick = () => {
+    scrollToCard(backupCardRef);
+    // Trigger backup manual
+    setTriggerBackup(true);
+    // Reset após um tempo para permitir re-trigger
+    setTimeout(() => setTriggerBackup(false), 1000);
+  };
+
+  const handleSecurityLogsClick = () => {
+    router.push("/configurations/security-logs");
+  };
 
   // Loading state
   if (session.isPending) {
@@ -115,72 +161,90 @@ const ConfigurationsPage = () => {
         </div>
 
         {/* Configuration Categories */}
-        <div className="grid gap-8">
-          {/* Perfil do Usuário */}
-          <UserProfileCard />
+        <div className="space-y-6">
+          {/* Ações Rápidas - Primeiro card */}
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <AlertTriangleIcon className="h-5 w-5 text-orange-600" />
+                <CardTitle className="text-orange-900">Ações Rápidas</CardTitle>
+              </div>
+              <CardDescription className="text-orange-700">
+                Acesso rápido às configurações mais utilizadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <button
+                  onClick={handleClinicDataClick}
+                  className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md"
+                >
+                  <BuildingIcon className="h-8 w-8 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-900">
+                    Dados da Clínica
+                  </span>
+                </button>
 
-          {/* Configurações da Clínica */}
-          <ClinicConfigurationCard />
+                <button
+                  onClick={handleCreateUserClick}
+                  className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md"
+                >
+                  <UsersIcon className="h-8 w-8 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-900">
+                    Criar Usuário
+                  </span>
+                </button>
 
-          {/* Gerenciamento de Usuários */}
-          <UserManagementCard />
+                <button
+                  onClick={handleBackupClick}
+                  className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md"
+                >
+                  <DatabaseIcon className="h-8 w-8 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-900">
+                    Backup Manual
+                  </span>
+                </button>
 
-          {/* Configurações de Sistema */}
-          <SystemConfigurationCard />
+                <button
+                  onClick={handleSecurityLogsClick}
+                  className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md"
+                >
+                  <LockIcon className="h-8 w-8 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-900">
+                    Logs de Segurança
+                  </span>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Configurações de Segurança */}
-          <SecurityConfigurationCard />
+          {/* Grid de cards principais em 2 colunas */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Perfil do Usuário */}
+            <UserProfileCard />
 
-          {/* Configurações de Notificações */}
-          <NotificationConfigurationCard />
+            {/* Configurações da Clínica */}
+            <div ref={clinicCardRef}>
+              <ClinicConfigurationCard forceEditMode={openClinicForm} />
+            </div>
 
-          {/* Backup e Dados */}
-          <DatabaseBackupCard />
+            {/* Gerenciamento de Usuários */}
+            <div ref={userCardRef}>
+              <UserManagementCard forceCreateModal={openCreateUser} />
+            </div>
+
+            {/* Configurações de Segurança */}
+            <SecurityConfigurationCard />
+
+            {/* Configurações de Notificações */}
+            <NotificationConfigurationCard />
+
+            {/* Backup e Dados */}
+            <div ref={backupCardRef}>
+              <DatabaseBackupCard triggerBackup={triggerBackup} />
+            </div>
+          </div>
         </div>
-
-        {/* Quick Actions */}
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <AlertTriangleIcon className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900">Ações Rápidas</CardTitle>
-            </div>
-            <CardDescription className="text-orange-700">
-              Acesso rápido às configurações mais utilizadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <button className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md">
-                <BuildingIcon className="h-8 w-8 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">
-                  Dados da Clínica
-                </span>
-              </button>
-
-              <button className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md">
-                <UsersIcon className="h-8 w-8 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">
-                  Criar Usuário
-                </span>
-              </button>
-
-              <button className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md">
-                <DatabaseIcon className="h-8 w-8 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">
-                  Backup Manual
-                </span>
-              </button>
-
-              <button className="flex flex-col items-center space-y-2 rounded-lg border border-orange-200 bg-white p-4 text-center transition-all hover:bg-orange-100 hover:shadow-md">
-                <LockIcon className="h-8 w-8 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">
-                  Logs de Segurança
-                </span>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </PageContainer>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { Edit, MoreHorizontal, RefreshCw, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { doctorsTable, patientsTable } from "@/db/schema";
 
 import DeleteAppointmentDialog from "./delete-appointment-dialog";
@@ -23,45 +30,81 @@ interface AppointmentActionsProps {
   appointment: Appointment;
   patients: (typeof patientsTable.$inferSelect)[];
   doctors: (typeof doctorsTable.$inferSelect)[];
-  onSuccess?: () => void;
 }
 
 export function AppointmentActions({
   appointment,
   patients,
   doctors,
-  onSuccess,
 }: AppointmentActionsProps) {
+  const router = useRouter();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Abrir menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsStatusDialogOpen(true)}>
-            Atualizar Status
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>
-            Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+  const handleSuccess = () => {
+    router.refresh();
+  };
 
+  return (
+    <TooltipProvider>
+      <div className="flex items-center gap-1">
+        {/* Botão Editar */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              <Edit className="h-4 w-4" />
+              <span className="sr-only">Editar agendamento</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Editar agendamento</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Botão Atualizar Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-600"
+              onClick={() => setIsStatusDialogOpen(true)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="sr-only">Atualizar status</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Atualizar status</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Botão Excluir */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="sr-only">Excluir agendamento</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Excluir agendamento</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Dialogs */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <UpsertAppointmentForm
           isOpen={isEditDialogOpen}
@@ -70,7 +113,7 @@ export function AppointmentActions({
           appointment={appointment}
           onSuccess={() => {
             setIsEditDialogOpen(false);
-            onSuccess?.();
+            handleSuccess();
           }}
         />
       </Dialog>
@@ -80,7 +123,7 @@ export function AppointmentActions({
           appointment={appointment}
           onSuccess={() => {
             setIsStatusDialogOpen(false);
-            onSuccess?.();
+            handleSuccess();
           }}
         />
       </Dialog>
@@ -90,10 +133,10 @@ export function AppointmentActions({
           appointment={appointment}
           onSuccess={() => {
             setIsDeleteDialogOpen(false);
-            onSuccess?.();
+            handleSuccess();
           }}
         />
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 }

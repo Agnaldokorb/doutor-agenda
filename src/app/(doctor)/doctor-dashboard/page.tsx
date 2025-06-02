@@ -5,6 +5,8 @@ import "dayjs/locale/pt-br";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import relativeTime from "dayjs/plugin/relativeTime";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import {
   ActivityIcon,
   CalendarDaysIcon,
@@ -41,10 +43,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { convertBusinessHoursFromUTC } from "@/helpers/timezone";
 
 dayjs.locale("pt-br");
 dayjs.extend(relativeTime);
 dayjs.extend(isBetween);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const DoctorDashboardPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,8 +69,14 @@ const DoctorDashboardPage = () => {
   const router = useRouter();
 
   useEffect(() => {
-    getDoctorAppointmentsAction.execute();
-  }, [getDoctorAppointmentsAction]);
+    // Só executar se não estiver já executando e não tiver dados
+    if (
+      !getDoctorAppointmentsAction.isExecuting &&
+      !getDoctorAppointmentsAction.result?.data
+    ) {
+      getDoctorAppointmentsAction.execute();
+    }
+  }, []); // Array vazio para executar apenas uma vez
 
   const data = getDoctorAppointmentsAction.result?.data;
   const doctor = data?.doctor;
@@ -188,6 +199,154 @@ const DoctorDashboardPage = () => {
     return sex === "male" ? "👨" : "👩";
   };
 
+  // Função para converter horário UTC para UTC-3
+  const formatTimeUTCToLocal = (utcDate: Date): string => {
+    const localDate = new Date(utcDate.getTime() - 3 * 60 * 60 * 1000);
+    return dayjs(localDate).format("HH:mm");
+  };
+
+  // Função para obter resumo do horário de funcionamento do médico
+  const getDoctorScheduleSummary = () => {
+    console.log("🔍 Debug doctor data:", {
+      doctorId: doctor?.id,
+      doctorName: doctor?.name,
+      businessHours: doctor?.businessHours,
+      businessHoursType: typeof doctor?.businessHours,
+    });
+
+    if (!doctor?.businessHours) {
+      // Sistema legado
+      if (doctor?.availableFromTime && doctor?.availableToTime) {
+        // Converter horários legados de UTC para UTC-3
+        const convertLegacyTime = (timeStr: string) => {
+          if (!timeStr) return "";
+          const [hours, minutes, seconds = "00"] = timeStr.split(":");
+          const utcTime = new Date();
+          utcTime.setUTCHours(
+            parseInt(hours),
+            parseInt(minutes),
+            parseInt(seconds),
+            0,
+          );
+          const localTime = new Date(utcTime.getTime() - 3 * 60 * 60 * 1000);
+          const localHours = localTime
+            .getUTCHours()
+            .toString()
+            .padStart(2, "0");
+          const localMinutes = localTime
+            .getUTCMinutes()
+            .toString()
+            .padStart(2, "0");
+          return `${localHours}:${localMinutes}`;
+        };
+
+        const fromTime = convertLegacyTime(doctor.availableFromTime);
+        const toTime = convertLegacyTime(doctor.availableToTime);
+
+        const dayNames = [
+          "Domingo",
+          "Segunda",
+          "Terça",
+          "Quarta",
+          "Quinta",
+          "Sexta",
+          "Sábado",
+        ];
+        const fromDay = dayNames[doctor.availableFromWeekDay];
+        const toDay = dayNames[doctor.availableToWeekDay];
+
+        return {
+          summary: `${fromDay} a ${toDay}, das ${fromTime} às ${toTime}`,
+          details: `Atendimento de ${fromDay} até ${toDay}`,
+          type: "legacy",
+        };
+      }
+      return {
+        summary: "Horários de atendimento não configurados",
+        details: "Configure seus horários na seção de médicos",
+        type: "none",
+      };
+    }
+
+    // Sistema novo
+    try {
+      const businessHours = convertBusinessHoursFromUTC(doctor.businessHours);
+      console.log("🔍 Debug businessHours converted:", businessHours);
+
+      const dayNames = [
+        { key: "sunday", label: "Domingo", short: "Dom" },
+        { key: "monday", label: "Segunda-feira", short: "Seg" },
+        { key: "tuesday", label: "Terça-feira", short: "Ter" },
+        { key: "wednesday", label: "Quarta-feira", short: "Qua" },
+        { key: "thursday", label: "Quinta-feira", short: "Qui" },
+        { key: "friday", label: "Sexta-feira", short: "Sex" },
+        { key: "saturday", label: "Sábado", short: "Sáb" },
+      ];
+
+      const openDays = dayNames.filter((day) => businessHours[day.key]?.isOpen);
+
+      console.log("🔍 Debug openDays:", openDays);
+
+      if (openDays.length === 0) {
+        return {
+          summary: "Nenhum dia de atendimento configurado",
+          details: "Configure seus dias de atendimento",
+          type: "none",
+        };
+      }
+
+      // Verificar se todos os dias têm o mesmo horário
+      const firstDay = businessHours[openDays[0].key];
+      const sameSchedule = openDays.every((day) => {
+        const daySchedule = businessHours[day.key];
+        return (
+          daySchedule?.startTime === firstDay?.startTime &&
+          daySchedule?.endTime === firstDay?.endTime
+        );
+      });
+
+      if (openDays.length === 7 && sameSchedule) {
+        return {
+          summary: `Todos os dias, das ${firstDay?.startTime || ""} às ${firstDay?.endTime || ""}`,
+          details: "Atendimento diário",
+          type: "advanced",
+        };
+      }
+
+      if (openDays.length <= 3) {
+        const scheduleDetails = openDays
+          .map((day) => {
+            const schedule = businessHours[day.key];
+            return `${day.short}: ${schedule?.startTime || ""}-${schedule?.endTime || ""}`;
+          })
+          .join(", ");
+
+        return {
+          summary: sameSchedule
+            ? `${openDays.map((d) => d.short).join(", ")}, das ${firstDay?.startTime || ""} às ${firstDay?.endTime || ""}`
+            : scheduleDetails,
+          details: `Atendimento: ${openDays.map((d) => d.label).join(", ")}`,
+          type: "advanced",
+        };
+      }
+
+      return {
+        summary: `${openDays.length} dias por semana - ${openDays.map((d) => d.short).join(", ")}`,
+        details: sameSchedule
+          ? `Das ${firstDay?.startTime || ""} às ${firstDay?.endTime || ""}`
+          : "Horários variados por dia",
+        type: "advanced",
+      };
+    } catch (error) {
+      console.error("Erro ao processar businessHours:", error);
+      return {
+        summary: "Erro ao carregar horários de atendimento",
+        details: "Verifique a configuração dos horários",
+        type: "error",
+      };
+    }
+  };
+
   const getGreeting = () => {
     const hour = dayjs().hour();
     if (hour < 12) return "Bom dia";
@@ -210,32 +369,86 @@ const DoctorDashboardPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
       <div className="mx-auto max-w-7xl space-y-8">
-        {/* Header melhorado com saudação */}
-        {doctor && (
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white shadow-xl">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-6">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                    <UserIcon className="h-10 w-10 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-blue-100">{getGreeting()},</p>
-                    <h1 className="text-3xl font-bold">{doctor.name}</h1>
-                    <p className="text-xl text-blue-100">{doctor.specialty}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-blue-100">Hoje é</p>
-                  <p className="text-xl font-semibold">
-                    {dayjs().format("dddd, DD [de] MMMM")}
-                  </p>
-                </div>
+        {/* Header com saudação e informações do médico */}
+        <div className="mb-8 space-y-6">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {getGreeting()}, Dr. {doctor?.name || "Médico"} 👋
+              </h1>
+              <p className="mt-2 text-gray-600">
+                {doctor?.specialty || "Especialidade"} - Dashboard Médico
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Hoje</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {dayjs().format("DD [de] MMMM [de] YYYY")}
+                </p>
               </div>
             </div>
-            <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-white/10 to-transparent"></div>
           </div>
-        )}
+
+          {/* Card com horários de funcionamento */}
+          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <ClockIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Horários de Atendimento
+                  </h3>
+                  <p className="text-gray-600">
+                    {getDoctorScheduleSummary().summary}
+                  </p>
+                  {getDoctorScheduleSummary().details && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      {getDoctorScheduleSummary().details}
+                    </p>
+                  )}
+                  <div className="mt-2">
+                    <Badge
+                      variant={
+                        getDoctorScheduleSummary().type === "advanced"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-xs"
+                    >
+                      {getDoctorScheduleSummary().type === "advanced" && (
+                        <>
+                          <div className="mr-1.5 h-2 w-2 rounded-full bg-green-500"></div>
+                          Horários configurados
+                        </>
+                      )}
+                      {getDoctorScheduleSummary().type === "legacy" && (
+                        <>
+                          <div className="mr-1.5 h-2 w-2 rounded-full bg-gray-400"></div>
+                          Sistema legado
+                        </>
+                      )}
+                      {getDoctorScheduleSummary().type === "none" && (
+                        <>
+                          <div className="mr-1.5 h-2 w-2 rounded-full bg-red-400"></div>
+                          Não configurado
+                        </>
+                      )}
+                      {getDoctorScheduleSummary().type === "error" && (
+                        <>
+                          <div className="mr-1.5 h-2 w-2 rounded-full bg-orange-400"></div>
+                          Erro na configuração
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Grid de estatísticas melhorado */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
@@ -452,19 +665,12 @@ const DoctorDashboardPage = () => {
 
                                 <div className="flex flex-col items-end space-y-2">
                                   <div className="text-lg font-semibold text-gray-900">
-                                    {(() => {
-                                      const utcDate = new Date(
-                                        appointment.date,
-                                      );
-                                      const localDate = new Date(
-                                        utcDate.getTime() - 3 * 60 * 60 * 1000,
-                                      );
-                                      return dayjs(localDate).format("HH:mm");
-                                    })()}
+                                    {formatTimeUTCToLocal(
+                                      new Date(appointment.date),
+                                    )}
                                   </div>
                                   <Badge
-                                    className={`${getStatusColor(appointment.status)} flex items-center space-x-1`}
-                                    variant="secondary"
+                                    className={`flex items-center space-x-1 text-xs ${getStatusColor(appointment.status)} `}
                                   >
                                     {getStatusIcon(appointment.status)}
                                     <span className="capitalize">

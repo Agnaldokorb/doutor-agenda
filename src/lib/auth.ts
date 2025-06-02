@@ -13,6 +13,11 @@ export const auth = betterAuth({
     usePlural: true,
     schema,
   }),
+  trustedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://*.vercel.app",
+  ],
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -27,24 +32,20 @@ export const auth = betterAuth({
           clinic: true,
         },
       });
-      
+
       // Buscar informações completas do usuário incluindo o tipo
       const fullUser = await db.query.usersTable.findFirst({
         where: eq(schema.usersTable.id, user.id),
       });
-      
+
       // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
       const clinic = clinics?.[0];
       return {
         user: {
           ...user,
           userType: fullUser?.userType || "admin",
-          clinic: clinic?.clinicId
-            ? {
-                id: clinic?.clinicId,
-                name: clinic?.clinic?.name,
-              }
-            : undefined,
+          mustChangePassword: fullUser?.mustChangePassword || false,
+          clinic: clinic?.clinicId ? clinic?.clinic : undefined,
         },
         session,
       };

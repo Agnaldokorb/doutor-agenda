@@ -105,11 +105,7 @@ const PatientPage = ({ params }: PatientPageProps) => {
     getPatientMedicalRecordsAction.execute({
       patientId: resolvedParams.patientId,
     });
-  }, [
-    resolvedParams.patientId,
-    getCurrentDoctorAction,
-    getPatientMedicalRecordsAction,
-  ]);
+  }, [resolvedParams.patientId]);
 
   const data = getPatientMedicalRecordsAction.result?.data;
 
@@ -674,34 +670,38 @@ const PatientPage = ({ params }: PatientPageProps) => {
       </div>
 
       {/* Modal para criar novo prontuário */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <UpsertMedicalRecordForm
-          patientId={resolvedParams.patientId}
-          doctorId={currentDoctorId || ""}
-          onSuccess={() => {
-            setIsCreateModalOpen(false);
-            getPatientMedicalRecordsAction.execute({
-              patientId: resolvedParams.patientId,
-            });
-          }}
-        />
-      </Dialog>
+      {isCreateModalOpen && (
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <UpsertMedicalRecordForm
+            patientId={resolvedParams.patientId}
+            doctorId={currentDoctorId || ""}
+            onSuccess={() => {
+              setIsCreateModalOpen(false);
+              getPatientMedicalRecordsAction.execute({
+                patientId: resolvedParams.patientId,
+              });
+            }}
+          />
+        </Dialog>
+      )}
 
       {/* Modal para editar prontuário */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <UpsertMedicalRecordForm
-          patientId={resolvedParams.patientId}
-          doctorId={currentDoctorId || ""}
-          medicalRecord={selectedRecord || undefined}
-          onSuccess={() => {
-            setIsEditModalOpen(false);
-            setSelectedRecord(null);
-            getPatientMedicalRecordsAction.execute({
-              patientId: resolvedParams.patientId,
-            });
-          }}
-        />
-      </Dialog>
+      {isEditModalOpen && selectedRecord && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <UpsertMedicalRecordForm
+            patientId={resolvedParams.patientId}
+            doctorId={currentDoctorId || ""}
+            medicalRecord={selectedRecord}
+            onSuccess={() => {
+              setIsEditModalOpen(false);
+              setSelectedRecord(null);
+              getPatientMedicalRecordsAction.execute({
+                patientId: resolvedParams.patientId,
+              });
+            }}
+          />
+        </Dialog>
+      )}
     </div>
   );
 };

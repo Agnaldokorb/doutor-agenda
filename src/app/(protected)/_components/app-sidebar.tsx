@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BuildingIcon,
   CalendarDays,
   LayoutDashboard,
   LogOut,
@@ -89,10 +90,32 @@ export function AppSidebar() {
     });
   };
 
+  // Obter logo da clínica
+  const clinicLogo = session.data?.user?.clinic?.logoUrl;
+  const clinicName = session.data?.user?.clinic?.name || "Clínica";
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4">
-        <Image src="/logo.svg" alt="Doutor Agenda" width={136} height={28} />
+        <div className="flex items-center justify-center">
+          {clinicLogo && !imageError ? (
+            <Image
+              src={clinicLogo}
+              alt={`Logo da ${clinicName}`}
+              width={136}
+              height={28}
+              className="object-contain"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="flex items-center space-x-2">
+              <BuildingIcon className="h-6 w-6 text-blue-600" />
+              <span className="text-lg font-semibold text-gray-900">
+                {clinicName}
+              </span>
+            </div>
+          )}
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -137,7 +160,7 @@ export function AppSidebar() {
                       {session.data?.user?.clinic?.name}
                     </p>
                     <p className="text-muted-foreground text-sm">
-                      {session.data?.user.email}
+                      {session.data?.user.name}
                     </p>
                   </div>
                 </SidebarMenuButton>

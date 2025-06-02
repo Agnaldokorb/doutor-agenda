@@ -42,9 +42,21 @@ const formSchema = z.object({
     message: "E-mail inválido.",
   }),
   avatarImageUrl: z.string().optional(),
-  phone_number: z.string().trim().min(10, {
-    message: "Número de telefone deve ter pelo menos 10 dígitos.",
-  }),
+  phone_number: z
+    .string()
+    .trim()
+    .min(1, { message: "Número de telefone é obrigatório." })
+    .refine(
+      (value) => {
+        // Remove todos os caracteres não numéricos
+        const digitsOnly = value.replace(/\D/g, "");
+        // Verifica se tem 10 ou 11 dígitos
+        return digitsOnly.length === 10 || digitsOnly.length === 11;
+      },
+      {
+        message: "Número de telefone deve ter 10 ou 11 dígitos.",
+      },
+    ),
   sex: z.enum(["male", "female"], {
     required_error: "Sexo é obrigatório.",
   }),
@@ -216,15 +228,14 @@ const UpsertPatientForm = ({
                     onValueChange={(values) => {
                       field.onChange(values.value || "");
                     }}
-                    format={
-                      field.value &&
-                      field.value.replace(/\D/g, "").length === 11
-                        ? "(##) #####-####"
-                        : "(##) ####-####"
-                    }
-                    mask="_"
+                    format="(##) #####-####"
                     customInput={Input}
                     placeholder="(11) 99999-9999"
+                    allowEmptyFormatting={false}
+                    isAllowed={(values) => {
+                      const digits = (values.value || "").replace(/\D/g, "");
+                      return digits.length <= 11;
+                    }}
                   />
                 </FormControl>
                 <FormMessage />

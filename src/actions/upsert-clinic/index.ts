@@ -187,4 +187,4 @@ export const getClinic = actionClient.action(async () => {
       }`,
     );
   }
-}); 
+});

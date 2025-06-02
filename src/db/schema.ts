@@ -23,6 +23,7 @@ export const usersTable = pgTable("users", {
   emailVerified: boolean("email_verified").notNull(),
   image: text("image"),
   userType: userTypeEnum("user_type").notNull().default("admin"),
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -150,6 +151,8 @@ export const doctorsTable = pgTable("doctors", {
   availableToWeekDay: integer("available_to_week_day").notNull(),
   availableFromTime: time("available_from_time").notNull(),
   availableToTime: time("available_to_time").notNull(),
+  // Novo campo para horários detalhados (JSON)
+  businessHours: text("business_hours"), // Armazenará JSON com horários por dia da semana
   specialty: text("specialty").notNull(),
   appointmentPriceInCents: integer("appointment_price_in_cents").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -324,6 +327,110 @@ export const medicalRecordsTableRelations = relations(
     appointment: one(appointmentsTable, {
       fields: [medicalRecordsTable.appointmentId],
       references: [appointmentsTable.id],
+    }),
+  }),
+);
+
+// Enum para tipos de log de segurança
+export const securityLogTypeEnum = pgEnum("security_log_type", [
+  "login",
+  "logout",
+  "failed_login",
+  "password_change",
+  "user_created",
+  "user_deleted",
+  "user_updated",
+  "permission_change",
+  "data_access",
+  "data_export",
+  "system_access",
+  "configuration_change",
+]);
+
+// Nova tabela para logs de segurança
+export const securityLogsTable = pgTable("security_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clinicId: uuid("clinic_id")
+    .notNull()
+    .references(() => clinicsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
+  type: securityLogTypeEnum("type").notNull(),
+  action: text("action").notNull(), // Descrição da ação realizada
+  details: text("details"), // Detalhes adicionais em JSON
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  success: boolean("success").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relações para a tabela de logs de segurança
+export const securityLogsTableRelations = relations(
+  securityLogsTable,
+  ({ one }) => ({
+    clinic: one(clinicsTable, {
+      fields: [securityLogsTable.clinicId],
+      references: [clinicsTable.id],
+    }),
+    user: one(usersTable, {
+      fields: [securityLogsTable.userId],
+      references: [usersTable.id],
+    }),
+  }),
+);
+
+// Nova tabela para configurações de segurança da clínica
+export const securityConfigurationsTable = pgTable("security_configurations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clinicId: uuid("clinic_id")
+    .notNull()
+    .references(() => clinicsTable.id, { onDelete: "cascade" })
+    .unique(), // Uma configuração por clínica
+
+  // Configurações de log
+  enableLoginLogging: boolean("enable_login_logging").notNull().default(true),
+  enableDataAccessLogging: boolean("enable_data_access_logging")
+    .notNull()
+    .default(true),
+  enableConfigurationLogging: boolean("enable_configuration_logging")
+    .notNull()
+    .default(true),
+  logRetentionDays: integer("log_retention_days").notNull().default(90),
+
+  // Configurações de sessão
+  sessionTimeoutMinutes: integer("session_timeout_minutes")
+    .notNull()
+    .default(480), // 8 horas
+  maxConcurrentSessions: integer("max_concurrent_sessions")
+    .notNull()
+    .default(5),
+
+  // Configurações de senha
+  requirePasswordChange: boolean("require_password_change")
+    .notNull()
+    .default(false),
+  passwordChangeIntervalDays: integer("password_change_interval_days").default(
+    90,
+  ),
+
+  // Configurações de notificações de segurança
+  notifyFailedLogins: boolean("notify_failed_logins").notNull().default(true),
+  notifyNewLogins: boolean("notify_new_logins").notNull().default(false),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Relações para a tabela de configurações de segurança
+export const securityConfigurationsTableRelations = relations(
+  securityConfigurationsTable,
+  ({ one }) => ({
+    clinic: one(clinicsTable, {
+      fields: [securityConfigurationsTable.clinicId],
+      references: [clinicsTable.id],
     }),
   }),
 );
