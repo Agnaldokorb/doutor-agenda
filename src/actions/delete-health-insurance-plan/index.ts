@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { healthInsurancePlansTable } from "@/db/schema";
+import { appointmentsTable,healthInsurancePlansTable } from "@/db/schema";
 import { logAuditActivity } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
@@ -51,13 +51,12 @@ export const deleteHealthInsurancePlan = actionClient
         throw new Error("Plano de saúde não encontrado");
       }
 
-      // Verificar se há agendamentos usando este plano
-      const appointmentsWithPlan = await db.query.appointmentsTable.findMany({
-        where: eq(db.appointmentsTable.healthInsurancePlanId, parsedInput.id),
-        limit: 1,
+      // Verificar se há agendamentos associados
+      const associatedAppointments = await db.query.appointmentsTable.findMany({
+        where: eq(appointmentsTable.healthInsurancePlanId, parsedInput.id),
       });
 
-      if (appointmentsWithPlan.length > 0) {
+      if (associatedAppointments.length > 0) {
         throw new Error(
           "Não é possível deletar este plano pois há agendamentos associados a ele. Desative o plano se necessário.",
         );
@@ -70,15 +69,15 @@ export const deleteHealthInsurancePlan = actionClient
 
       // Log de auditoria LGPD
       await logAuditActivity({
+        userId: session.user.id,
+        clinicId: session.user.clinic.id,
+        action: `Deletar plano de saúde: ${existingPlan.name}`,
         type: "data_deletion",
-        action: "deletar plano de saúde",
         details: {
           planId: parsedInput.id,
           planName: existingPlan.name,
-          reimbursementValueInCents: existingPlan.reimbursementValueInCents,
         },
-        userId: session.user.id,
-        clinicId: session.user.clinic.id,
+        success: true,
       });
 
       console.log(`✅ Plano de saúde deletado: ${parsedInput.id}`);

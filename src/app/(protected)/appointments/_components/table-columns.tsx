@@ -9,8 +9,8 @@ import { DataTable } from "@/components/ui/data-table";
 import {
   appointmentsTable,
   doctorsTable,
-  patientsTable,
   healthInsurancePlansTable,
+  patientsTable,
 } from "@/db/schema";
 import { formatCurrencyInCents } from "@/helpers/currency";
 import { convertUTCToUTCMinus3 } from "@/helpers/timezone";
@@ -167,9 +167,6 @@ export function AppointmentsTable({
             appointment={appointment}
             patients={patients}
             doctors={doctors}
-            onSuccess={() => {
-              window.location.reload();
-            }}
           />
         );
       },

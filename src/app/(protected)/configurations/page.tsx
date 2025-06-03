@@ -57,11 +57,10 @@ const ConfigurationsPage = () => {
   }, [session.data, router]);
 
   // Função para rolar até um card específico
-  const scrollToCard = (ref: React.RefObject<HTMLDivElement>) => {
-    ref.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  const scrollToCard = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   // Handlers para as ações rápidas

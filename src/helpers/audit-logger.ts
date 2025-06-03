@@ -23,6 +23,10 @@ interface AuditLogData {
     | "permission_change"
     | "data_access"
     | "data_export"
+    | "data_import"
+    | "data_creation"
+    | "data_update"
+    | "data_deletion"
     | "system_access"
     | "configuration_change";
   details?: Record<string, any>;
@@ -137,7 +141,12 @@ export async function logDataAccess({
 }: {
   userId: string;
   clinicId: string;
-  dataType: "patient" | "appointment" | "medical_record" | "user";
+  dataType:
+    | "patient"
+    | "appointment"
+    | "medical_record"
+    | "user"
+    | "billing_stats";
   recordId: string;
   action?: string;
   success?: boolean;
@@ -201,7 +210,13 @@ export async function logDataOperation({
   userId: string;
   clinicId: string;
   operation: "create" | "update" | "delete";
-  dataType: "patient" | "appointment" | "medical_record" | "user" | "doctor";
+  dataType:
+    | "patient"
+    | "appointment"
+    | "medical_record"
+    | "user"
+    | "doctor"
+    | "payment";
   recordId?: string;
   changes?: Record<string, any>;
   success?: boolean;

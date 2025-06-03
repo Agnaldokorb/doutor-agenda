@@ -1,16 +1,17 @@
+import { format } from "date-fns";
+import dayjs from "dayjs";
 import { and, count, eq, ilike, or } from "drizzle-orm";
 import {
+  BriefcaseIcon,
   CalendarIcon,
   CheckCircleIcon,
   ClockIcon,
   TrendingUpIcon,
-  XCircleIcon,
   UserIcon,
-  BriefcaseIcon,
+  XCircleIcon,
 } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +19,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { db } from "@/db";
 import { appointmentsTable, doctorsTable, patientsTable } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { formatCurrencyInCents } from "@/helpers/currency";
 import { convertUTCToUTCMinus3 } from "@/helpers/timezone";
-import dayjs from "dayjs";
+import { auth } from "@/lib/auth";
 
 import AddAppointmentButton from "./_components/add-appointment-button";
 import { AppointmentActions } from "./_components/appointment-actions";

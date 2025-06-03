@@ -16,8 +16,8 @@ import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { upsertAppointment } from "@/actions/upsert-appointment";
 import { getHealthInsurancePlans } from "@/actions/get-health-insurance-plans";
+import { upsertAppointment } from "@/actions/upsert-appointment";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -96,7 +96,14 @@ const UpsertAppointmentForm = ({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
-  const [healthInsurancePlans, setHealthInsurancePlans] = useState<any[]>([]);
+  const [healthInsurancePlans, setHealthInsurancePlans] = useState<
+    Array<{
+      id: string;
+      name: string;
+      reimbursementValueInCents: number;
+      isActive: boolean;
+    }>
+  >([]);
   const [dailyBookedCounts, setDailyBookedCounts] = useState<
     Record<string, number>
   >({});
@@ -516,7 +523,7 @@ const UpsertAppointmentForm = ({
       console.log("🔍 Appointment Form - Modal aberto, buscando planos...");
       getPlansAction.execute();
     }
-  }, [isOpen]);
+  }, [isOpen, getPlansAction]);
 
   const upsertAppointmentAction = useAction(upsertAppointment, {
     onSuccess: () => {

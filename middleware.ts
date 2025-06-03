@@ -45,10 +45,10 @@ export default async function middleware(request: NextRequest) {
       headers: request.headers,
     });
 
-    // Log de tentativa de acesso para auditoria LGPD
-    if (session?.user && pathname !== "/authentication") {
+    // Log de auditoria para acesso às páginas
+    if (session?.user) {
       console.log(
-        `🔍 [AUDIT] User ${session.user.email} accessed: ${pathname} from IP: ${request.ip || "unknown"}`,
+        `🔍 [AUDIT] User ${session.user.email} accessed: ${pathname} from IP: ${request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"}`,
       );
     }
 
@@ -82,7 +82,7 @@ export default async function middleware(request: NextRequest) {
     console.error("❌ [SECURITY] Erro no middleware:", error);
     // Log de erro de segurança para auditoria
     console.log(
-      `🚨 [SECURITY ALERT] Middleware error for path: ${pathname} from IP: ${request.ip || "unknown"}`,
+      `🚨 [SECURITY ALERT] Middleware error for path: ${pathname} from IP: ${request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"}`,
     );
 
     // Em caso de erro, redirecionar para autenticação apenas se não estiver já lá

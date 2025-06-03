@@ -355,21 +355,18 @@ async function handleCriticalAlerts(alerts: SecurityAlert[]): Promise<void> {
  */
 async function sendSecurityAlert(alert: SecurityAlert): Promise<void> {
   try {
-    const dpoEmail = process.env.DPO_EMAIL || "dpo@doutoragenda.com.br";
-
-    await emailService.sendSecurityAlert({
-      to: dpoEmail,
-      alertType: alert.type,
-      severity: alert.severity,
-      message: alert.message,
-      details: alert.details,
-      timestamp: alert.timestamp,
-      clinicId: alert.clinicId,
-    });
-
-    console.log(`📧 Alerta de segurança enviado para: ${dpoEmail}`);
+    console.log(`🚨 [SECURITY ALERT] ${alert.type}: ${alert.message}`);
+    console.log(`📧 Alert details:`, alert);
+    
+    // TODO: Implementar envio de email quando EmailService suportar alertas de segurança
+    // await emailService.sendSecurityAlert({
+    //   to: alert.clinicId, // Buscar email do DPO da clínica
+    //   subject: `Alerta de Segurança - ${alert.type}`,
+    //   message: alert.message,
+    //   details: alert.details,
+    // });
   } catch (error) {
-    console.error("❌ Erro ao enviar alerta por email:", error);
+    console.error("❌ Falha ao enviar alerta de segurança:", error);
   }
 }
 

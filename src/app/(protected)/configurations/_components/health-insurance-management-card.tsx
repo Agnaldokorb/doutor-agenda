@@ -57,8 +57,10 @@ const formSchema = z.object({
   reimbursementValueInCents: z.number().min(0, {
     message: "Valor de reembolso deve ser maior ou igual a zero",
   }),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
 });
+
+type FormData = z.infer<typeof formSchema>;
 
 const HealthInsuranceManagementCard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -67,7 +69,7 @@ const HealthInsuranceManagementCard = () => {
   );
   const [plans, setPlans] = useState<HealthInsurancePlan[]>([]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -160,8 +162,12 @@ const HealthInsuranceManagementCard = () => {
     }
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    upsertPlanAction.execute(values);
+  const onSubmit = (values: FormData) => {
+    if (editingPlan) {
+      upsertPlanAction.execute({ ...values, id: editingPlan.id });
+    } else {
+      upsertPlanAction.execute(values);
+    }
   };
 
   const formatCurrency = (valueInCents: number) => {

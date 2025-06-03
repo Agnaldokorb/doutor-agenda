@@ -18,7 +18,6 @@ import {
   PhoneIcon,
   SearchIcon,
   TrendingUpIcon,
-  UserIcon,
   XCircleIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -76,7 +75,8 @@ const DoctorDashboardPage = () => {
     ) {
       getDoctorAppointmentsAction.execute();
     }
-  }, []); // Array vazio para executar apenas uma vez
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executar apenas uma vez na montagem
 
   const data = getDoctorAppointmentsAction.result?.data;
   const doctor = data?.doctor;
@@ -283,7 +283,9 @@ const DoctorDashboardPage = () => {
         { key: "saturday", label: "Sábado", short: "Sáb" },
       ];
 
-      const openDays = dayNames.filter((day) => businessHours[day.key]?.isOpen);
+      const openDays = dayNames.filter(
+        (day) => businessHours && businessHours[day.key]?.isOpen,
+      );
 
       console.log("🔍 Debug openDays:", openDays);
 
@@ -296,9 +298,9 @@ const DoctorDashboardPage = () => {
       }
 
       // Verificar se todos os dias têm o mesmo horário
-      const firstDay = businessHours[openDays[0].key];
+      const firstDay = businessHours && businessHours[openDays[0]?.key];
       const sameSchedule = openDays.every((day) => {
-        const daySchedule = businessHours[day.key];
+        const daySchedule = businessHours && businessHours[day.key];
         return (
           daySchedule?.startTime === firstDay?.startTime &&
           daySchedule?.endTime === firstDay?.endTime
@@ -316,7 +318,7 @@ const DoctorDashboardPage = () => {
       if (openDays.length <= 3) {
         const scheduleDetails = openDays
           .map((day) => {
-            const schedule = businessHours[day.key];
+            const schedule = businessHours && businessHours[day.key];
             return `${day.short}: ${schedule?.startTime || ""}-${schedule?.endTime || ""}`;
           })
           .join(", ");

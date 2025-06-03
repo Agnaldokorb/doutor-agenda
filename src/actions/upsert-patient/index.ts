@@ -34,7 +34,7 @@ export const upsertPatient = actionClient
 
     let oldAvatarUrl: string | null = null;
     let isUpdate = false;
-    let existingPatientData: any = null;
+    let existingPatientData: typeof patientsTable.$inferSelect | null = null;
 
     // Se for edição, buscar imagem antiga para exclusão
     if (parsedInput.id) {

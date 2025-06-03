@@ -391,6 +391,10 @@ export const securityLogTypeEnum = pgEnum("security_log_type", [
   "permission_change",
   "data_access",
   "data_export",
+  "data_import",
+  "data_creation",
+  "data_update",
+  "data_deletion",
   "system_access",
   "configuration_change",
 ]);
@@ -533,9 +537,7 @@ export const paymentTransactionsTable = pgTable("payment_transactions", {
     .references(() => appointmentPaymentsTable.id, { onDelete: "cascade" }),
   paymentMethod: paymentMethodEnum("payment_method").notNull(),
   amountInCents: integer("amount_in_cents").notNull(),
-  transactionReference: text("transaction_reference"), // Número do cheque, referência do PIX, etc.
-  cardLastFourDigits: text("card_last_four_digits"), // Últimos 4 dígitos do cartão (se aplicável)
-  cardFlag: text("card_flag"), // Bandeira do cartão (Visa, Mastercard, etc.)
+  transactionReference: text("transaction_reference"), // ID da transação, número do cheque, referência do PIX, etc.
   notes: text("notes"), // Observações específicas da transação
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -570,3 +572,46 @@ export const paymentTransactionsTableRelations = relations(
     }),
   }),
 );
+
+// ===== VIEWS PARA FATURAMENTO =====
+
+// View para relatórios de faturamento diário
+export const dailyRevenueView = pgTable("daily_revenue_view", {
+  date: timestamp("date").notNull(),
+  clinicId: uuid("clinic_id").notNull(),
+  totalAmountInCents: integer("total_amount_in_cents").notNull(),
+  totalTransactions: integer("total_transactions").notNull(),
+  averageTransactionInCents: integer("average_transaction_in_cents"),
+});
+
+// View para relatórios de faturamento por método de pagamento
+export const paymentMethodRevenueView = pgTable("payment_method_revenue_view", {
+  date: timestamp("date").notNull(),
+  clinicId: uuid("clinic_id").notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  totalAmountInCents: integer("total_amount_in_cents").notNull(),
+  transactionCount: integer("transaction_count").notNull(),
+});
+
+// View para relatórios mensais de faturamento
+export const monthlyRevenueView = pgTable("monthly_revenue_view", {
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  clinicId: uuid("clinic_id").notNull(),
+  totalAmountInCents: integer("total_amount_in_cents").notNull(),
+  totalTransactions: integer("total_transactions").notNull(),
+  totalDoctors: integer("total_doctors"),
+  totalPatients: integer("total_patients"),
+});
+
+// View para top médicos por faturamento
+export const doctorRevenueView = pgTable("doctor_revenue_view", {
+  doctorId: uuid("doctor_id").notNull(),
+  doctorName: text("doctor_name").notNull(),
+  specialty: text("specialty").notNull(),
+  clinicId: uuid("clinic_id").notNull(),
+  totalAmountInCents: integer("total_amount_in_cents").notNull(),
+  totalAppointments: integer("total_appointments").notNull(),
+  averageAppointmentValueInCents: integer("average_appointment_value_in_cents"),
+  lastAppointmentDate: timestamp("last_appointment_date"),
+});

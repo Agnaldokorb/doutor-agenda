@@ -3,10 +3,12 @@
 import {
   BuildingIcon,
   CalendarDays,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   SettingsIcon,
   Stethoscope,
+  TrendingUp,
   UsersRound,
 } from "lucide-react";
 import Image from "next/image";
@@ -65,6 +67,24 @@ export function AppSidebar() {
     },
   ];
 
+  // Itens de cobrança disponíveis para admin e atendente
+  const billingItems = [
+    {
+      title: "Cobrança",
+      url: "/billing",
+      icon: CreditCard,
+    },
+  ];
+
+  // Itens de faturamento disponíveis apenas para admins
+  const revenueItems = [
+    {
+      title: "Faturamento",
+      url: "/revenue",
+      icon: TrendingUp,
+    },
+  ];
+
   // Itens administrativos disponíveis apenas para admins
   const adminItems = [
     {
@@ -75,10 +95,25 @@ export function AppSidebar() {
   ];
 
   // Combinar itens baseado no tipo de usuário
-  const items =
-    session.data?.user?.userType === "admin"
-      ? [...baseItems, ...adminItems]
-      : baseItems;
+  const items = [...baseItems];
+
+  // Adicionar cobrança para admin e atendente
+  if (
+    session.data?.user?.userType === "admin" ||
+    session.data?.user?.userType === "atendente"
+  ) {
+    items.push(...billingItems);
+  }
+
+  // Adicionar faturamento apenas para admin
+  if (session.data?.user?.userType === "admin") {
+    items.push(...revenueItems);
+  }
+
+  // Adicionar configurações apenas para admin
+  if (session.data?.user?.userType === "admin") {
+    items.push(...adminItems);
+  }
 
   const handleSignOut = async () => {
     await authClient.signOut({

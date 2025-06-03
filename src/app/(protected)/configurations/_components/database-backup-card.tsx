@@ -52,7 +52,7 @@ export const DatabaseBackupCard = ({
   // Actions
   const getStatsAction = useAction(getDatabaseStats, {
     onSuccess: (data) => {
-      console.log("✅ Estatísticas do banco carregadas:", data.stats);
+      console.log("✅ Estatísticas do banco carregadas:", data?.data?.stats);
     },
     onError: (error) => {
       console.error("❌ Erro ao carregar estatísticas:", error);
@@ -223,7 +223,11 @@ export const DatabaseBackupCard = ({
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-indigo-600">
-                      {formatDate(stats?.lastBackup || null)}
+                      {formatDate(
+                        stats?.lastBackup
+                          ? stats.lastBackup.toISOString()
+                          : null,
+                      )}
                     </span>
                     {getStatsAction.isExecuting && (
                       <RefreshCwIcon className="h-3 w-3 animate-spin text-gray-400" />

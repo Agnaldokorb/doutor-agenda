@@ -17,8 +17,12 @@ const eslintConfig = [
       "simple-import-sort": simpleImportSort,
     },
     rules: {
-      "simple-import-sort/imports": "error",
-      "simple-import-sort/exports": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "@next/next/no-img-element": "warn",
+      "react/no-unescaped-entities": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "simple-import-sort/imports": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 ];

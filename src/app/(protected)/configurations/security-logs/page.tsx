@@ -43,7 +43,10 @@ const SecurityLogsPage = () => {
 
   const getSecurityLogsAction = useAction(getSecurityLogs, {
     onSuccess: (data) => {
-      console.log("✅ Logs de segurança carregados:", data?.logs?.length || 0);
+      console.log(
+        "✅ Logs de segurança carregados:",
+        data?.data?.logs?.length || 0,
+      );
     },
     onError: (error) => {
       console.error("❌ Erro ao carregar logs:", error);

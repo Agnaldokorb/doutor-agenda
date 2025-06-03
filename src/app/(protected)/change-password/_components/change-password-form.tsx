@@ -69,7 +69,8 @@ export const ChangePasswordForm = ({
 
   const changePasswordAction = useAction(changePassword, {
     onSuccess: (data) => {
-      toast.success(data.message);
+      console.log("✅ Senha alterada com sucesso");
+      toast.success(data?.data?.message || "Senha alterada com sucesso!");
       form.reset();
 
       if (isObligatory) {
@@ -88,8 +89,8 @@ export const ChangePasswordForm = ({
       }
     },
     onError: (error) => {
-      console.error("Erro ao alterar senha:", error);
-      toast.error(error.serverError || "Erro ao alterar senha");
+      console.error("❌ Erro ao alterar senha:", error);
+      toast.error(error?.error?.serverError || "Erro ao alterar senha");
     },
   });
 

@@ -113,7 +113,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url }: { user: any; url: string }) => {
       // Log de auditoria LGPD para tentativa de reset de senha
       console.log(
         `🔐 [AUDIT LGPD] Password reset requested for user: ${user.email} at ${new Date().toISOString()}`,
@@ -121,7 +121,13 @@ export const auth = betterAuth({
       // Aqui você pode implementar o envio de email
       // TODO: Implementar envio de email de reset
     },
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({
+      user,
+      url,
+    }: {
+      user: any;
+      url: string;
+    }) => {
       // Log de auditoria LGPD para verificação de email
       console.log(
         `📧 [AUDIT LGPD] Email verification sent to: ${user.email} at ${new Date().toISOString()}`,

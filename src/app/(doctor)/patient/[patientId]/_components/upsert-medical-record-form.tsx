@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, UserIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -11,16 +10,8 @@ import { z } from "zod";
 import { getPatientAppointments } from "@/actions/get-patient-appointments";
 import { upsertMedicalRecord } from "@/actions/upsert-medical-record";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -121,7 +112,8 @@ const UpsertMedicalRecordForm = ({
   // Buscar agendamentos quando o componente montar
   useEffect(() => {
     getPatientAppointmentsAction.execute({ patientId });
-  }, [patientId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]); // Apenas quando patientId mudar
 
   // Resetar o formulário quando receber um prontuário para editar
   useEffect(() => {

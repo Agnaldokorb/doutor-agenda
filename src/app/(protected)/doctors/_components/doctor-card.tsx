@@ -7,8 +7,8 @@ import {
   EditIcon,
   TrashIcon,
 } from "lucide-react";
-import { useAction } from "next-safe-action/hooks";
 import Link from "next/link";
+import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 
 import { deleteDoctor } from "@/actions/delete-doctor";

@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckCircleIcon,
   EyeIcon,
@@ -48,7 +49,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 const configurationSchema = z.object({
   enableLoginLogging: z.boolean(),
@@ -72,21 +72,22 @@ export const SecurityConfigurationCard = () => {
   // Actions
   const getConfigAction = useAction(getSecurityConfiguration, {
     onSuccess: (data) => {
-      console.log("✅ Configurações carregadas:", data.configuration);
-      if (data.configuration) {
+      console.log("✅ Configurações carregadas:", data?.data?.configuration);
+      if (data?.data?.configuration) {
         form.reset({
-          enableLoginLogging: data.configuration.enableLoginLogging,
-          enableDataAccessLogging: data.configuration.enableDataAccessLogging,
+          enableLoginLogging: data.data.configuration.enableLoginLogging,
+          enableDataAccessLogging:
+            data.data.configuration.enableDataAccessLogging,
           enableConfigurationLogging:
-            data.configuration.enableConfigurationLogging,
-          logRetentionDays: data.configuration.logRetentionDays,
-          sessionTimeoutMinutes: data.configuration.sessionTimeoutMinutes,
-          maxConcurrentSessions: data.configuration.maxConcurrentSessions,
-          requirePasswordChange: data.configuration.requirePasswordChange,
+            data.data.configuration.enableConfigurationLogging,
+          logRetentionDays: data.data.configuration.logRetentionDays,
+          sessionTimeoutMinutes: data.data.configuration.sessionTimeoutMinutes,
+          maxConcurrentSessions: data.data.configuration.maxConcurrentSessions,
+          requirePasswordChange: data.data.configuration.requirePasswordChange,
           passwordChangeIntervalDays:
-            data.configuration.passwordChangeIntervalDays || 90,
-          notifyFailedLogins: data.configuration.notifyFailedLogins,
-          notifyNewLogins: data.configuration.notifyNewLogins,
+            data.data.configuration.passwordChangeIntervalDays || 90,
+          notifyFailedLogins: data.data.configuration.notifyFailedLogins,
+          notifyNewLogins: data.data.configuration.notifyNewLogins,
         });
       }
     },
@@ -100,7 +101,7 @@ export const SecurityConfigurationCard = () => {
     onSuccess: (data) => {
       console.log(
         "✅ Estatísticas de logs carregadas:",
-        data?.logs?.length || 0,
+        data?.data?.logs?.length || 0,
       );
     },
     onError: (error) => {
@@ -146,7 +147,7 @@ export const SecurityConfigurationCard = () => {
 
   const configuration = getConfigAction.result?.data?.configuration;
   const logs = getLogsAction.result?.data?.logs || [];
-  const activeUsers = logs.filter((log) => log.type === "login").length;
+  const activeUsers = logs.filter((log: any) => log.type === "login").length;
   const totalLogs = logs.length;
 
   const onSubmit = (values: ConfigurationForm) => {

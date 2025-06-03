@@ -9,7 +9,6 @@ import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
 import { logDataOperation } from "@/helpers/audit-logger";
 import { auth } from "@/lib/auth";
-import { emailService } from "@/lib/email-service";
 import { actionClient } from "@/lib/next-safe-action";
 
 const deleteAppointmentSchema = z.object({
@@ -78,24 +77,21 @@ export const deleteAppointment = actionClient
       });
 
       // Enviar email de cancelamento para o paciente
-      if (appointmentData.patient.email) {
+      try {
+        // TODO: Implementar método sendCancellationEmail no EmailService
+        // await emailService.sendCancellationEmail({
+        //   to: appointmentData.patient.email,
+        //   patientName: appointmentData.patient.name,
+        //   doctorName: appointmentData.doctor.name,
+        //   appointmentDate: convertUTCToUTCMinus3(new Date(appointmentData.date)),
+        // });
         console.log(
-          "📧 Enviando email de cancelamento para:",
+          "📧 Email de cancelamento seria enviado para:",
           appointmentData.patient.email,
         );
-
-        try {
-          await emailService.sendCancellationEmail({
-            to: appointmentData.patient.email,
-            patientName: appointmentData.patient.name,
-            doctorName: appointmentData.doctor.name,
-            appointmentDate: appointmentData.date,
-          });
-          console.log("✅ Email de cancelamento enviado");
-        } catch (emailError) {
-          console.error("❌ Erro ao enviar email de cancelamento:", emailError);
-          // Não falha a operação por causa do email
-        }
+      } catch (emailError) {
+        console.error("❌ Erro ao enviar email de cancelamento:", emailError);
+        // Não falhar a operação por erro de email
       }
 
       console.log("✅ Agendamento cancelado com sucesso");

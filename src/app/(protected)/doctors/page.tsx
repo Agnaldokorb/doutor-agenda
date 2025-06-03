@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { db } from "@/db";
 import { appointmentsTable, doctorsTable } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { formatCurrencyInCents } from "@/helpers/currency";
+import { auth } from "@/lib/auth";
 
 import AddDoctorButton from "./_components/add-doctor-button";
 import DoctorCard from "./_components/doctor-card";

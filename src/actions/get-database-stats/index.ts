@@ -63,14 +63,16 @@ export const getDatabaseStats = actionClient.action(async () => {
     ]);
 
     // Buscar último backup realizado (através dos logs de segurança)
-    const lastBackupLog = await db.query.securityLogsTable.findFirst({
-      where: (logs, { eq, and }) =>
-        and(
-          eq(logs.clinicId, session.user.clinic.id),
-          eq(logs.type, "data_export"),
-        ),
-      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
-    });
+    const lastBackupLog = session.user.clinic
+      ? await db.query.securityLogsTable.findFirst({
+          where: (logs, { eq, and }) =>
+            and(
+              eq(logs.clinicId, session.user.clinic!.id),
+              eq(logs.type, "data_export"),
+            ),
+          orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+        })
+      : null;
 
     const stats = {
       doctors: doctorsCount[0].count,

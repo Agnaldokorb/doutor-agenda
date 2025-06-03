@@ -33,7 +33,7 @@ export const upsertMedicalRecord = actionClient
     const isEdit = !!parsedInput.id;
     let existingRecord = null;
 
-    if (isEdit) {
+    if (isEdit && parsedInput.id) {
       existingRecord = await db.query.medicalRecordsTable.findFirst({
         where: eq(medicalRecordsTable.id, parsedInput.id),
       });
