@@ -6,7 +6,12 @@ import { CheckCircle, ClipboardCheck, XCircle } from "lucide-react";
 
 import { AppointmentStatus } from "@/actions/update-appointment-status/types";
 import { DataTable } from "@/components/ui/data-table";
-import { appointmentsTable, doctorsTable, patientsTable } from "@/db/schema";
+import {
+  appointmentsTable,
+  doctorsTable,
+  patientsTable,
+  healthInsurancePlansTable,
+} from "@/db/schema";
 import { formatCurrencyInCents } from "@/helpers/currency";
 import { convertUTCToUTCMinus3 } from "@/helpers/timezone";
 
@@ -15,6 +20,7 @@ import { AppointmentActions } from "./appointment-actions";
 export type Appointment = typeof appointmentsTable.$inferSelect & {
   patient: typeof patientsTable.$inferSelect;
   doctor: typeof doctorsTable.$inferSelect;
+  healthInsurancePlan?: typeof healthInsurancePlansTable.$inferSelect | null;
 };
 
 // Função para obter o ícone e cor do status
@@ -104,13 +110,31 @@ export function AppointmentsTable({
       },
     },
     {
-      id: "price",
-      header: "VALOR",
+      id: "healthInsurance",
+      header: "PLANO DE SAÚDE",
       cell: ({ row }) => {
         const appointment = row.original;
         return (
           <div className="whitespace-nowrap">
-            {formatCurrencyInCents(appointment.doctor.appointmentPriceInCents)}
+            {appointment.healthInsurancePlan?.name || "Particular"}
+          </div>
+        );
+      },
+    },
+    {
+      id: "price",
+      header: "VALOR",
+      cell: ({ row }) => {
+        const appointment = row.original;
+        // Se tem plano de saúde, mostrar valor do plano
+        // Se não tem plano (particular), mostrar valor do médico
+        const valueInCents = appointment.healthInsurancePlan
+          ? appointment.healthInsurancePlan.reimbursementValueInCents
+          : appointment.doctor.appointmentPriceInCents;
+
+        return (
+          <div className="whitespace-nowrap">
+            {formatCurrencyInCents(valueInCents)}
           </div>
         );
       },

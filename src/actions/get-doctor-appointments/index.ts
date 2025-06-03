@@ -66,6 +66,7 @@ export const getDoctorAppointments = actionClient.action(async () => {
             specialty: true,
           },
         },
+        healthInsurancePlan: true,
       },
       orderBy: (appointments, { desc }) => [desc(appointments.date)],
     });

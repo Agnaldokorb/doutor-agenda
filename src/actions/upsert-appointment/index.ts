@@ -52,6 +52,8 @@ export const upsertAppointment = actionClient
           clinicId: session.user.clinic.id,
           patientId: parsedInput.patientId,
           doctorId: parsedInput.doctorId,
+          healthInsurancePlanId: parsedInput.healthInsurancePlanId || null,
+          appointmentPriceInCents: parsedInput.appointmentPriceInCents,
           date: utcDateTime,
           status: "agendado",
         })
@@ -60,6 +62,8 @@ export const upsertAppointment = actionClient
           set: {
             patientId: parsedInput.patientId,
             doctorId: parsedInput.doctorId,
+            healthInsurancePlanId: parsedInput.healthInsurancePlanId || null,
+            appointmentPriceInCents: parsedInput.appointmentPriceInCents,
             date: utcDateTime,
           },
         })

@@ -139,6 +139,7 @@ export const clinicsTableRelations = relations(clinicsTable, ({ many }) => ({
   appointments: many(appointmentsTable),
   usersToClinics: many(usersToClinicsTable),
   medicalRecords: many(medicalRecordsTable),
+  healthInsurancePlans: many(healthInsurancePlansTable),
 }));
 
 export const doctorsTable = pgTable("doctors", {
@@ -221,6 +222,35 @@ export const appointmentStatusEnum = pgEnum("appointment_status", [
   "concluido",
 ]);
 
+// Tabela de planos de saúde
+export const healthInsurancePlansTable = pgTable("health_insurance_plans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clinicId: uuid("clinic_id")
+    .notNull()
+    .references(() => clinicsTable.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  reimbursementValueInCents: integer("reimbursement_value_in_cents")
+    .notNull()
+    .default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export const healthInsurancePlansTableRelations = relations(
+  healthInsurancePlansTable,
+  ({ one, many }) => ({
+    clinic: one(clinicsTable, {
+      fields: [healthInsurancePlansTable.clinicId],
+      references: [clinicsTable.id],
+    }),
+    appointments: many(appointmentsTable),
+  }),
+);
+
 export const appointmentsTable = pgTable("appointments", {
   id: uuid("id").defaultRandom().primaryKey(),
   date: timestamp("date").notNull(),
@@ -233,6 +263,13 @@ export const appointmentsTable = pgTable("appointments", {
   doctorId: uuid("doctor_id")
     .notNull()
     .references(() => doctorsTable.id, { onDelete: "cascade" }),
+  healthInsurancePlanId: uuid("health_insurance_plan_id").references(
+    () => healthInsurancePlansTable.id,
+    { onDelete: "set null" },
+  ),
+  appointmentPriceInCents: integer("appointment_price_in_cents")
+    .notNull()
+    .default(0),
   status: appointmentStatusEnum("status").default("agendado").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -255,7 +292,12 @@ export const appointmentsTableRelations = relations(
       fields: [appointmentsTable.doctorId],
       references: [doctorsTable.id],
     }),
+    healthInsurancePlan: one(healthInsurancePlansTable, {
+      fields: [appointmentsTable.healthInsurancePlanId],
+      references: [healthInsurancePlansTable.id],
+    }),
     medicalRecords: many(medicalRecordsTable),
+    payment: one(appointmentPaymentsTable),
   }),
 );
 
@@ -437,6 +479,94 @@ export const securityConfigurationsTableRelations = relations(
     clinic: one(clinicsTable, {
       fields: [securityConfigurationsTable.clinicId],
       references: [clinicsTable.id],
+    }),
+  }),
+);
+
+// Enum para métodos de pagamento
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "dinheiro",
+  "cartao_credito",
+  "cartao_debito",
+  "pix",
+  "cheque",
+  "transferencia_eletronica",
+]);
+
+// Enum para status de pagamento do agendamento
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pendente",
+  "pago",
+  "parcial",
+  "cancelado",
+]);
+
+// Nova tabela para controle de pagamentos dos agendamentos
+export const appointmentPaymentsTable = pgTable("appointment_payments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  appointmentId: uuid("appointment_id")
+    .notNull()
+    .references(() => appointmentsTable.id, { onDelete: "cascade" }),
+  clinicId: uuid("clinic_id")
+    .notNull()
+    .references(() => clinicsTable.id, { onDelete: "cascade" }),
+  totalAmountInCents: integer("total_amount_in_cents").notNull(),
+  paidAmountInCents: integer("paid_amount_in_cents").notNull().default(0),
+  remainingAmountInCents: integer("remaining_amount_in_cents").notNull(),
+  changeAmountInCents: integer("change_amount_in_cents").notNull().default(0),
+  status: paymentStatusEnum("status").notNull().default("pendente"),
+  processedByUserId: text("processed_by_user_id")
+    .notNull()
+    .references(() => usersTable.id),
+  notes: text("notes"), // Observações sobre o pagamento
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Nova tabela para registrar cada método de pagamento usado
+export const paymentTransactionsTable = pgTable("payment_transactions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  appointmentPaymentId: uuid("appointment_payment_id")
+    .notNull()
+    .references(() => appointmentPaymentsTable.id, { onDelete: "cascade" }),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  amountInCents: integer("amount_in_cents").notNull(),
+  transactionReference: text("transaction_reference"), // Número do cheque, referência do PIX, etc.
+  cardLastFourDigits: text("card_last_four_digits"), // Últimos 4 dígitos do cartão (se aplicável)
+  cardFlag: text("card_flag"), // Bandeira do cartão (Visa, Mastercard, etc.)
+  notes: text("notes"), // Observações específicas da transação
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relações para a tabela de pagamentos de agendamentos
+export const appointmentPaymentsTableRelations = relations(
+  appointmentPaymentsTable,
+  ({ one, many }) => ({
+    appointment: one(appointmentsTable, {
+      fields: [appointmentPaymentsTable.appointmentId],
+      references: [appointmentsTable.id],
+    }),
+    clinic: one(clinicsTable, {
+      fields: [appointmentPaymentsTable.clinicId],
+      references: [clinicsTable.id],
+    }),
+    processedByUser: one(usersTable, {
+      fields: [appointmentPaymentsTable.processedByUserId],
+      references: [usersTable.id],
+    }),
+    transactions: many(paymentTransactionsTable),
+  }),
+);
+
+// Relações para a tabela de transações de pagamento
+export const paymentTransactionsTableRelations = relations(
+  paymentTransactionsTable,
+  ({ one }) => ({
+    appointmentPayment: one(appointmentPaymentsTable, {
+      fields: [paymentTransactionsTable.appointmentPaymentId],
+      references: [appointmentPaymentsTable.id],
     }),
   }),
 );

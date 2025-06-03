@@ -8,6 +8,7 @@ export const upsertAppointmentSchema = z.object({
   doctorId: z.string().uuid({
     message: "Selecione um médico.",
   }),
+  healthInsurancePlanId: z.string().uuid().optional(),
   appointmentPriceInCents: z.number().min(1, {
     message: "Valor da consulta é obrigatório.",
   }),

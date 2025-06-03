@@ -95,6 +95,7 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
     with: {
       patient: true,
       doctor: true,
+      healthInsurancePlan: true,
     },
     orderBy: (appointments) => [appointments.date],
   });
@@ -148,6 +149,7 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
         with: {
           patient: true,
           doctor: true,
+          healthInsurancePlan: true,
         },
         orderBy: (appointments) => [appointments.date],
       });
@@ -201,14 +203,21 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
         eq(appointmentsTable.status, "concluido"),
       ),
     ),
-    with: { doctor: true },
+    with: {
+      doctor: true,
+      healthInsurancePlan: true,
+    },
   });
 
-  const totalRevenue = revenueAppointments.reduce(
-    (sum, appointment) =>
-      sum + (appointment.doctor?.appointmentPriceInCents || 0),
-    0,
-  );
+  const totalRevenue = revenueAppointments.reduce((sum, appointment) => {
+    // Se tem plano de saúde, usar valor do plano
+    // Se não tem plano (particular), usar valor do médico
+    const valueInCents = appointment.healthInsurancePlan
+      ? appointment.healthInsurancePlan.reimbursementValueInCents
+      : appointment.doctor?.appointmentPriceInCents || 0;
+
+    return sum + valueInCents;
+  }, 0);
 
   // Próximos agendamentos
   const upcomingAppointments = await db.query.appointmentsTable.findMany({
@@ -219,6 +228,7 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
     with: {
       patient: true,
       doctor: true,
+      healthInsurancePlan: true,
     },
     orderBy: (appointments) => [appointments.date],
     limit: 5,
@@ -440,12 +450,25 @@ const AppointmentsPage = async ({ searchParams }: AppointmentsPageProps) => {
                                     </div>
                                   </div>
 
+                                  {/* Plano de saúde */}
+                                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                                    <span className="font-medium">Plano:</span>
+                                    <span className="text-blue-600 font-medium">
+                                      {appointment.healthInsurancePlan?.name || "Particular"}
+                                    </span>
+                                  </div>
+
                                   <div className="mt-2 flex items-center justify-between">
                                     <span className="text-lg font-semibold text-green-600">
-                                      {formatCurrencyInCents(
-                                        appointment.doctor
-                                          ?.appointmentPriceInCents || 0,
-                                      )}
+                                      {(() => {
+                                        // Se tem plano de saúde, usar valor do plano
+                                        // Se não tem plano (particular), usar valor do médico
+                                        const valueInCents = appointment.healthInsurancePlan
+                                          ? appointment.healthInsurancePlan.reimbursementValueInCents
+                                          : (appointment.doctor?.appointmentPriceInCents || 0);
+                                        
+                                        return formatCurrencyInCents(valueInCents);
+                                      })()}
                                     </span>
                                     <AppointmentActions
                                       appointment={appointment}

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { upsertAppointment } from "@/actions/upsert-appointment";
+import { getHealthInsurancePlans } from "@/actions/get-health-insurance-plans";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -65,6 +66,7 @@ const formSchema = z.object({
   doctorId: z.string().uuid({
     message: "Selecione um médico.",
   }),
+  healthInsurancePlanId: z.string().uuid().optional(),
   appointmentPriceInCents: z.number().min(1, {
     message: "Valor da consulta é obrigatório.",
   }),
@@ -94,6 +96,7 @@ const UpsertAppointmentForm = ({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [healthInsurancePlans, setHealthInsurancePlans] = useState<any[]>([]);
   const [dailyBookedCounts, setDailyBookedCounts] = useState<
     Record<string, number>
   >({});
@@ -114,6 +117,7 @@ const UpsertAppointmentForm = ({
     defaultValues: {
       patientId: appointment?.patientId || "",
       doctorId: appointment?.doctorId || "",
+      healthInsurancePlanId: appointment?.healthInsurancePlanId || undefined,
       appointmentPriceInCents: appointment?.doctor.appointmentPriceInCents || 0,
       date: appointment?.date ? new Date(appointment.date) : undefined,
       timeSlot: appointment?.date
@@ -125,11 +129,26 @@ const UpsertAppointmentForm = ({
   const watchPatientId = form.watch("patientId");
   const watchDoctorId = form.watch("doctorId");
   const watchDate = form.watch("date");
+  const watchHealthInsurancePlanId = form.watch("healthInsurancePlanId");
 
   // Busca o médico selecionado
   const selectedDoctor = useMemo(() => {
     return doctors.find((doc) => doc.id === watchDoctorId);
   }, [watchDoctorId, doctors]);
+
+  // Busca o plano de saúde selecionado
+  const selectedHealthInsurancePlan = useMemo(() => {
+    // Garantir que healthInsurancePlans é um array válido
+    if (
+      !Array.isArray(healthInsurancePlans) ||
+      healthInsurancePlans.length === 0
+    ) {
+      return undefined;
+    }
+    return healthInsurancePlans.find(
+      (plan) => plan.id === watchHealthInsurancePlanId,
+    );
+  }, [watchHealthInsurancePlanId, healthInsurancePlans]);
 
   // Busca os horários já ocupados quando mudam doctor e data
   useEffect(() => {
@@ -430,24 +449,22 @@ const UpsertAppointmentForm = ({
     return totalSlots > 0 && bookedCount >= totalSlots;
   };
 
-  // Atualiza o valor da consulta quando um médico é selecionado
+  // Atualizar valor da consulta quando plano de saúde ou médico mudar
   useEffect(() => {
-    if (watchDoctorId) {
-      const doctor = doctors.find((doc) => doc.id === watchDoctorId);
-      if (doctor) {
-        form.setValue(
-          "appointmentPriceInCents",
-          doctor.appointmentPriceInCents,
-        );
-      }
-    } else {
-      form.setValue("appointmentPriceInCents", 0);
+    if (selectedHealthInsurancePlan) {
+      // Se há plano de saúde selecionado, usar o valor de reembolso
+      form.setValue(
+        "appointmentPriceInCents",
+        selectedHealthInsurancePlan.reimbursementValueInCents,
+      );
+    } else if (selectedDoctor) {
+      // Se não há plano, usar o valor padrão do médico
+      form.setValue(
+        "appointmentPriceInCents",
+        selectedDoctor.appointmentPriceInCents,
+      );
     }
-
-    // Limpar a data e o horário quando o médico mudar
-    form.resetField("date");
-    form.setValue("timeSlot", "");
-  }, [watchDoctorId, doctors, form]);
+  }, [selectedHealthInsurancePlan, selectedDoctor, form]);
 
   // Resetar formulário quando o modal é aberto/fechado ou quando recebe um agendamento para editar
   useEffect(() => {
@@ -457,6 +474,7 @@ const UpsertAppointmentForm = ({
         form.reset({
           patientId: appointment.patientId,
           doctorId: appointment.doctorId,
+          healthInsurancePlanId: appointment.healthInsurancePlanId || undefined,
           appointmentPriceInCents: appointment.doctor.appointmentPriceInCents,
           date: new Date(appointment.date),
           timeSlot: getTimeFromDate(new Date(appointment.date)),
@@ -466,12 +484,39 @@ const UpsertAppointmentForm = ({
         form.reset({
           patientId: "",
           doctorId: "",
+          healthInsurancePlanId: undefined,
           appointmentPriceInCents: 0,
           timeSlot: "",
         });
       }
     }
   }, [isOpen, appointment, form]);
+
+  // Action para buscar planos de saúde
+  const getPlansAction = useAction(getHealthInsurancePlans, {
+    onSuccess: (data) => {
+      // next-safe-action encapsula o resultado em {data: resultado}
+      const result = data?.data;
+      const validPlans = Array.isArray(result) ? result : [];
+      console.log(
+        "✅ Appointment Form - Planos carregados:",
+        validPlans.length,
+      );
+      setHealthInsurancePlans(validPlans);
+    },
+    onError: (error) => {
+      console.error("❌ Appointment Form - Erro ao buscar planos:", error);
+      setHealthInsurancePlans([]);
+    },
+  });
+
+  // Buscar planos de saúde quando o formulário abrir
+  useEffect(() => {
+    if (isOpen) {
+      console.log("🔍 Appointment Form - Modal aberto, buscando planos...");
+      getPlansAction.execute();
+    }
+  }, [isOpen]);
 
   const upsertAppointmentAction = useAction(upsertAppointment, {
     onSuccess: () => {
@@ -647,31 +692,102 @@ const UpsertAppointmentForm = ({
 
           <FormField
             control={form.control}
-            name="appointmentPriceInCents"
+            name="healthInsurancePlanId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Valor da consulta</FormLabel>
-                <NumericFormat
-                  value={field.value / 100}
+                <FormLabel>Plano de Saúde</FormLabel>
+                <Select
                   onValueChange={(value) => {
-                    field.onChange(
-                      value.floatValue ? value.floatValue * 100 : 0,
-                    );
+                    // Se for "particular", limpar o campo
+                    field.onChange(value === "particular" ? undefined : value);
                   }}
-                  decimalScale={2}
-                  fixedDecimalScale
-                  decimalSeparator=","
-                  allowNegative={false}
-                  allowLeadingZeros={false}
-                  thousandSeparator="."
-                  customInput={Input}
-                  prefix="R$"
-                  disabled={!watchDoctorId}
-                />
+                  defaultValue={field.value || "particular"}
+                  value={field.value || "particular"}
+                  disabled={!watchPatientId || !watchDoctorId}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione um plano de saúde" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="particular">
+                      💰 Particular (sem plano)
+                    </SelectItem>
+                    {getPlansAction.isExecuting ? (
+                      <SelectItem value="loading" disabled>
+                        Carregando planos...
+                      </SelectItem>
+                    ) : (
+                      healthInsurancePlans
+                        .filter((plan) => plan.isActive)
+                        .map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            🏥 {plan.name} -{" "}
+                            {new Intl.NumberFormat("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            }).format(plan.reimbursementValueInCents / 100)}
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Campo de valor - só mostrar se não houver plano de saúde selecionado */}
+          {!selectedHealthInsurancePlan && (
+            <FormField
+              control={form.control}
+              name="appointmentPriceInCents"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor da consulta</FormLabel>
+                  <NumericFormat
+                    value={field.value / 100}
+                    onValueChange={(value) => {
+                      field.onChange(
+                        value.floatValue ? value.floatValue * 100 : 0,
+                      );
+                    }}
+                    decimalScale={2}
+                    fixedDecimalScale
+                    decimalSeparator=","
+                    allowNegative={false}
+                    allowLeadingZeros={false}
+                    thousandSeparator="."
+                    customInput={Input}
+                    prefix="R$"
+                    disabled={!watchDoctorId}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Mostrar valor do plano quando selecionado */}
+          {selectedHealthInsurancePlan && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-green-800">
+                  🏥 Plano de Saúde: {selectedHealthInsurancePlan.name}
+                </span>
+              </div>
+              <div className="mt-1 text-sm text-green-600">
+                Valor de reembolso:{" "}
+                {new Intl.NumberFormat("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                }).format(
+                  selectedHealthInsurancePlan.reimbursementValueInCents / 100,
+                )}
+              </div>
+            </div>
+          )}
 
           <FormField
             control={form.control}

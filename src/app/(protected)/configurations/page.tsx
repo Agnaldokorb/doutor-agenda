@@ -26,6 +26,7 @@ import { authClient } from "@/lib/auth-client";
 
 import { ClinicConfigurationCard } from "./_components/clinic-configuration-card";
 import { DatabaseBackupCard } from "./_components/database-backup-card";
+import { HealthInsuranceManagementCard } from "./_components/health-insurance-management-card";
 import { NotificationConfigurationCard } from "./_components/notification-configuration-card";
 import { SecurityConfigurationCard } from "./_components/security-configuration-card";
 import { UserManagementCard } from "./_components/user-management-card";
@@ -235,6 +236,9 @@ const ConfigurationsPage = () => {
 
             {/* Configurações de Segurança */}
             <SecurityConfigurationCard />
+
+            {/* Planos de Saúde */}
+            <HealthInsuranceManagementCard />
 
             {/* Configurações de Notificações */}
             <NotificationConfigurationCard />

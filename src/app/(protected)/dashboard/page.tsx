@@ -94,49 +94,63 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
     );
 
   // Faturamento do mês selecionado (apenas agendamentos concluídos)
-  const revenue = await db
-    .select({
-      total: sum(doctorsTable.appointmentPriceInCents),
-    })
-    .from(appointmentsTable)
-    .innerJoin(doctorsTable, eq(appointmentsTable.doctorId, doctorsTable.id))
-    .where(
-      and(
-        eq(appointmentsTable.clinicId, session.user.clinic.id),
-        eq(appointmentsTable.status, "concluido"),
-        sql`${appointmentsTable.date} >= ${startOfSelectedMonth}`,
-        sql`${appointmentsTable.date} <= ${endOfSelectedMonth}`,
-      ),
-    );
+  const revenueAppointments = await db.query.appointmentsTable.findMany({
+    where: and(
+      eq(appointmentsTable.clinicId, session.user.clinic.id),
+      eq(appointmentsTable.status, "concluido"),
+      sql`${appointmentsTable.date} >= ${startOfSelectedMonth}`,
+      sql`${appointmentsTable.date} <= ${endOfSelectedMonth}`,
+    ),
+    with: {
+      doctor: true,
+      healthInsurancePlan: true,
+    },
+  });
+
+  const monthlyRevenue = revenueAppointments.reduce((sum, appointment) => {
+    // Se tem plano de saúde, usar valor do plano
+    // Se não tem plano (particular), usar valor do médico
+    const valueInCents = appointment.healthInsurancePlan
+      ? appointment.healthInsurancePlan.reimbursementValueInCents
+      : appointment.doctor?.appointmentPriceInCents || 0;
+
+    return sum + valueInCents;
+  }, 0);
 
   // Faturamento do dia atual (apenas se estiver visualizando o mês atual)
   const isCurrentMonth =
     selectedMonth.getMonth() === currentDate.getMonth() &&
     selectedMonth.getFullYear() === currentDate.getFullYear();
 
-  let todayRevenue = null;
+  let todayRevenue = 0;
   if (isCurrentMonth) {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
-    const todayRevenueResult = await db
-      .select({
-        total: sum(doctorsTable.appointmentPriceInCents),
-      })
-      .from(appointmentsTable)
-      .innerJoin(doctorsTable, eq(appointmentsTable.doctorId, doctorsTable.id))
-      .where(
-        and(
-          eq(appointmentsTable.clinicId, session.user.clinic.id),
-          eq(appointmentsTable.status, "concluido"),
-          sql`${appointmentsTable.date} >= ${startOfToday}`,
-          sql`${appointmentsTable.date} <= ${endOfToday}`,
-        ),
-      );
+    const todayRevenueAppointments = await db.query.appointmentsTable.findMany({
+      where: and(
+        eq(appointmentsTable.clinicId, session.user.clinic.id),
+        eq(appointmentsTable.status, "concluido"),
+        sql`${appointmentsTable.date} >= ${startOfToday}`,
+        sql`${appointmentsTable.date} <= ${endOfToday}`,
+      ),
+      with: {
+        doctor: true,
+        healthInsurancePlan: true,
+      },
+    });
 
-    todayRevenue = todayRevenueResult;
+    todayRevenue = todayRevenueAppointments.reduce((sum, appointment) => {
+      // Se tem plano de saúde, usar valor do plano
+      // Se não tem plano (particular), usar valor do médico
+      const valueInCents = appointment.healthInsurancePlan
+        ? appointment.healthInsurancePlan.reimbursementValueInCents
+        : appointment.doctor?.appointmentPriceInCents || 0;
+
+      return sum + valueInCents;
+    }, 0);
   }
 
   // Top médicos com mais agendamentos no mês selecionado
@@ -298,8 +312,8 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
           className={`grid gap-4 ${isCurrentMonth ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-5"}`}
         >
           <RevenueCards
-            monthlyRevenue={Number(revenue[0]?.total) || 0}
-            todayRevenue={Number(todayRevenue?.[0]?.total) || 0}
+            monthlyRevenue={monthlyRevenue}
+            todayRevenue={todayRevenue}
             isCurrentMonth={isCurrentMonth}
           />
 

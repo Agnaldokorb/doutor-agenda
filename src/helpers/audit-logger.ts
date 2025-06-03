@@ -226,3 +226,10 @@ export async function logDataOperation({
     success,
   });
 }
+
+/**
+ * Função genérica para log de auditoria (alias para createAuditLog)
+ */
+export async function logAuditActivity(data: AuditLogData) {
+  return createAuditLog(data);
+}
