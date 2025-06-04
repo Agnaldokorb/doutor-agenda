@@ -127,6 +127,13 @@
       "when": 1748997863398,
       "tag": "0017_curvy_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1749051934771,
+      "tag": "0018_pretty_firestar",
+      "breakpoints": true
     }
   ]
 }

@@ -30,6 +30,9 @@ export const usersTable = pgTable("users", {
     .default(false),
   privacyPolicyAcceptedAt: timestamp("privacy_policy_accepted_at"),
   privacyPolicyVersion: text("privacy_policy_version").default("1.0"),
+  // Campos de recuperação de senha
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

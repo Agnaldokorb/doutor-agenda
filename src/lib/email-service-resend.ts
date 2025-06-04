@@ -6,6 +6,8 @@ import {
   createAppointmentConfirmationTemplate,
   createAppointmentReminderTemplate,
   createAppointmentUpdateTemplate,
+  type PasswordResetEmailData,
+  createPasswordResetTemplate,
 } from "./email-templates";
 
 interface EmailOptions {
@@ -214,6 +216,27 @@ class ResendEmailService {
   }
 
   /**
+   * Envia email de recuperação de senha
+   */
+  async sendPasswordReset(data: PasswordResetEmailData): Promise<boolean> {
+    try {
+      const { subject, html } = createPasswordResetTemplate(data);
+
+      return await this.sendEmail(
+        {
+          to: data.userEmail,
+          subject,
+          html,
+        },
+        "system", // Usar "system" como clinicId para emails de sistema
+      );
+    } catch (error) {
+      console.error("❌ Erro ao enviar email de recuperação de senha:", error);
+      return false;
+    }
+  }
+
+  /**
    * Envia múltiplos emails em lote
    */
   async sendBatchEmails(
@@ -247,4 +270,4 @@ class ResendEmailService {
 export const emailService = new ResendEmailService();
 
 // Exportar tipos
-export type { AppointmentEmailData, EmailOptions };
+export type { AppointmentEmailData, EmailOptions, PasswordResetEmailData };

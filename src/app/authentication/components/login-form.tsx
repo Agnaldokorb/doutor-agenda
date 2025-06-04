@@ -34,7 +34,11 @@ const loginSchema = z.object({
     .min(8, { message: "A senha deve ter pelo menos 8 caracteres" }),
 });
 
-const LoginForm = () => {
+interface LoginFormProps {
+  onForgotPassword: () => void;
+}
+
+const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const router = useRouter();
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -122,6 +126,18 @@ const LoginForm = () => {
                   "Entrar"
                 )}
               </Button>
+
+              <div className="text-center">
+                <Button
+                  variant="link"
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="text-muted-foreground hover:text-primary text-sm"
+                >
+                  Esqueci minha senha
+                </Button>
+              </div>
+
               <Button
                 variant="outline"
                 className="w-full"

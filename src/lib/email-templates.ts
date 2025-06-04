@@ -407,3 +407,66 @@ export const createAppointmentUpdateTemplate = (
 };
 
 export type { AppointmentEmailData };
+
+// Interface para dados de recuperação de senha
+interface PasswordResetEmailData {
+  userEmail: string;
+  userName: string;
+  resetUrl: string;
+  expiresIn: string; // ex: "1 hora"
+}
+
+// Template de recuperação de senha
+export const createPasswordResetTemplate = (data: PasswordResetEmailData) => {
+  const content = `
+    <h2 style="color: #495057; margin-bottom: 10px;">🔒 Recuperação de Senha</h2>
+    <p style="font-size: 16px; color: #6c757d; margin-bottom: 30px;">
+      Olá <strong>${data.userName}</strong>, recebemos uma solicitação para redefinir sua senha.
+    </p>
+
+    <div class="card" style="background: #fff3cd; border-color: #ffc107;">
+      <h3 style="color: #856404; margin-top: 0;">🔐 Redefinir Senha</h3>
+      
+      <p style="color: #856404; margin-bottom: 20px;">
+        Para criar uma nova senha, clique no botão abaixo. Este link é válido por <strong>${data.expiresIn}</strong>.
+      </p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${data.resetUrl}" class="button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); font-size: 16px; padding: 15px 30px;">
+          🔑 Redefinir Minha Senha
+        </a>
+      </div>
+      
+      <p style="color: #6c757d; font-size: 14px; text-align: center;">
+        Ou copie e cole este link no seu navegador:<br>
+        <span style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace; word-break: break-all; display: inline-block; margin-top: 10px;">
+          ${data.resetUrl}
+        </span>
+      </p>
+    </div>
+
+    <div class="alert" style="background: #d1ecf1; border-color: #bee5eb;">
+      <span class="alert-icon" style="color: #0c5460;">⚠️</span>
+      <strong style="color: #0c5460;">Importante:</strong>
+      <ul style="margin: 10px 0; color: #0c5460;">
+        <li>Se você não solicitou esta recuperação, ignore este email</li>
+        <li>Nunca compartilhe este link com outras pessoas</li>
+        <li>O link expira em ${data.expiresIn}</li>
+        <li>Após criar a nova senha, faça login normalmente</li>
+      </ul>
+    </div>
+
+    <div class="divider"></div>
+    
+    <p style="font-size: 14px; color: #6c757d; text-align: center;">
+      Se você continuar tendo problemas, entre em contato com o suporte.
+    </p>
+  `;
+
+  return {
+    subject: "🔒 Recuperação de Senha - NovoCod Med",
+    html: baseTemplate(content),
+  };
+};
+
+export type { PasswordResetEmailData };
