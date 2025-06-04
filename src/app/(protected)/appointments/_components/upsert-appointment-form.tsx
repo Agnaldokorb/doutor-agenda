@@ -199,7 +199,7 @@ const UpsertAppointmentForm = ({
   // Buscar contagem de agendamentos para o mês do calendário
   useEffect(() => {
     const fetchMonthlyBookedCounts = async () => {
-      if (!selectedDoctor) {
+      if (!watchDoctorId) {
         setDailyBookedCounts({});
         return;
       }
@@ -220,7 +220,7 @@ const UpsertAppointmentForm = ({
           const dateStr = currentDate.toISOString().split("T")[0];
           promises.push(
             fetch(
-              `/api/appointments/booked-slots?doctorId=${selectedDoctor.id}&date=${dateStr}`,
+              `/api/appointments/booked-slots?doctorId=${watchDoctorId}&date=${dateStr}`,
             )
               .then((res) => res.json())
               .then((data) => ({
@@ -244,10 +244,10 @@ const UpsertAppointmentForm = ({
       }
     };
 
-    if (selectedDoctor) {
+    if (watchDoctorId) {
       fetchMonthlyBookedCounts();
     }
-  }, [selectedDoctor]);
+  }, [watchDoctorId]);
 
   // Função para verificar se um horário está ocupado
   const isTimeSlotBooked = useCallback(
@@ -471,7 +471,13 @@ const UpsertAppointmentForm = ({
         selectedDoctor.appointmentPriceInCents,
       );
     }
-  }, [selectedHealthInsurancePlan, selectedDoctor, form]);
+  }, [
+    selectedHealthInsurancePlan?.id,
+    selectedHealthInsurancePlan?.reimbursementValueInCents,
+    selectedDoctor?.id,
+    selectedDoctor?.appointmentPriceInCents,
+    form,
+  ]);
 
   // Resetar formulário quando o modal é aberto/fechado ou quando recebe um agendamento para editar
   useEffect(() => {
