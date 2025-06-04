@@ -89,22 +89,22 @@ export const auth = betterAuth({
         });
 
         const sessionDataPromise = (async () => {
-          const clinics = await db.query.usersToClinicsTable.findMany({
-            where: eq(usersToClinicsTable.userId, user.id),
-            with: {
-              clinic: true,
-            },
-          });
+        const clinics = await db.query.usersToClinicsTable.findMany({
+          where: eq(usersToClinicsTable.userId, user.id),
+          with: {
+            clinic: true,
+          },
+        });
 
-          // Buscar informações completas do usuário incluindo o tipo
-          const fullUser = await db.query.usersTable.findFirst({
-            where: eq(schema.usersTable.id, user.id),
-          });
+        // Buscar informações completas do usuário incluindo o tipo
+        const fullUser = await db.query.usersTable.findFirst({
+          where: eq(schema.usersTable.id, user.id),
+        });
 
-          // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
-          const clinic = clinics?.[0];
+        // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
+        const clinic = clinics?.[0];
           
-          return {
+        return {
             userType: fullUser?.userType || "admin",
             mustChangePassword: fullUser?.mustChangePassword || false,
             clinic: clinic?.clinicId ? clinic?.clinic : undefined,
