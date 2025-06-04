@@ -8,25 +8,25 @@ import * as schema from "./schema";
 // Função para determinar configuração SSL baseada na URL do banco
 function getSSLConfig() {
   const databaseUrl = process.env.DATABASE_URL!;
-  
-  // Se estiver em produção, sempre usar SSL seguro
+
+  // Para localhost (desenvolvimento local), sem SSL
+  if (databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
+    return false;
+  }
+
+  // Para provedores cloud (Neon, Supabase, etc.), usar SSL mas aceitar certificados
   if (process.env.NODE_ENV === "production") {
     return {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false, // Aceita certificados auto-assinados de provedores
       require: true,
     };
   }
-  
-  // Em desenvolvimento, sempre aceitar certificados auto-assinados se SSL for necessário
-  if (databaseUrl.includes("://") && !databaseUrl.includes("localhost")) {
-    return {
-      rejectUnauthorized: false, // Aceita certificados auto-assinados
-      require: true,
-    };
-  }
-  
-  // Para localhost em desenvolvimento, SSL desabilitado
-  return false;
+
+  // Em desenvolvimento com banco remoto
+  return {
+    rejectUnauthorized: false,
+    require: true,
+  };
 }
 
 // Configuração segura da conexão com PostgreSQL
@@ -38,6 +38,9 @@ const poolConfig = {
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
 };
+
+console.log(`🗄️ [DATABASE] Configurando conexão para: ${process.env.NODE_ENV}`);
+console.log(`🗄️ [DATABASE] SSL config:`, getSSLConfig());
 
 const pool = new Pool(poolConfig);
 
