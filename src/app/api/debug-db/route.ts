@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, pool } from "@/db";
+import { Pool } from "pg";
 
 export async function GET() {
   const debugInfo = {
@@ -8,7 +9,9 @@ export async function GET() {
       NODE_ENV: process.env.NODE_ENV,
       DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
       DATABASE_URL_LENGTH: process.env.DATABASE_URL?.length || 0,
-      DATABASE_URL_PREFIX: process.env.DATABASE_URL?.substring(0, 20) + "...",
+      DATABASE_URL_PREFIX: process.env.DATABASE_URL?.substring(0, 50) + "...",
+      IS_SUPABASE: process.env.DATABASE_URL?.includes("supabase.co") || false,
+      HAS_SSLMODE: process.env.DATABASE_URL?.includes("sslmode=") || false,
     },
     pool: {
       totalCount: pool.totalCount,
@@ -174,6 +177,61 @@ export async function GET() {
     });
 
     console.error("❌ [DEBUG DB] Teste 4: Falhou", error);
+  }
+
+  // Teste 5: Supabase específico (se aplicável)
+  if (process.env.DATABASE_URL?.includes("supabase.co")) {
+    try {
+      console.log("🗄️ [DEBUG DB] Teste 5: Supabase específico...");
+      const start = Date.now();
+
+      // Teste com pool alternativa para Supabase
+      const supabasePool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+          rejectUnauthorized: false,
+        },
+        max: 5,
+        connectionTimeoutMillis: 20000,
+        idleTimeoutMillis: 30000,
+        allowExitOnIdle: true,
+      });
+
+      const client = await supabasePool.connect();
+      const result = await client.query(
+        "SELECT current_setting('server_version') as version, current_database() as db_name",
+      );
+      client.release();
+      await supabasePool.end();
+
+      const duration = Date.now() - start;
+
+      debugInfo.tests.push({
+        name: "supabase_specific",
+        status: "✅ success",
+        duration,
+        details: {
+          serverVersion: result.rows[0]?.version,
+          databaseName: result.rows[0]?.db_name,
+        },
+      });
+
+      console.log("✅ [DEBUG DB] Teste 5: Sucesso");
+    } catch (error) {
+      const duration = Date.now() - Date.now();
+      debugInfo.tests.push({
+        name: "supabase_specific",
+        status: "❌ failed",
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+        details: {
+          errorName: error instanceof Error ? error.name : "Unknown",
+          errorCode: (error as any)?.code,
+        },
+      });
+
+      console.error("❌ [DEBUG DB] Teste 5: Falhou", error);
+    }
   }
 
   console.log("🔍 [DEBUG DB] Diagnóstico concluído:", debugInfo);

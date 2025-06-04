@@ -10,7 +10,7 @@ function getSSLConfig() {
   const databaseUrl = process.env.DATABASE_URL!;
 
   console.log(
-    `🔍 [DATABASE] Analisando URL do banco: ${databaseUrl.substring(0, 30)}...`,
+    `🔍 [DATABASE] Analisando URL do banco: ${databaseUrl.substring(0, 50)}...`,
   );
 
   // Para localhost (desenvolvimento local), sem SSL
@@ -19,12 +19,32 @@ function getSSLConfig() {
     return false;
   }
 
-  // Detectar diferentes provedores cloud
+  // Se a URL já contém parâmetros SSL, usar configuração mínima
   if (
-    databaseUrl.includes("neon.") ||
-    databaseUrl.includes("supabase.") ||
-    databaseUrl.includes("render.")
+    databaseUrl.includes("sslmode=require") ||
+    databaseUrl.includes("ssl=true")
   ) {
+    console.log(
+      `🔍 [DATABASE] SSL já configurado na URL - usando configuração mínima`,
+    );
+    return {
+      rejectUnauthorized: false, // Necessário para Supabase
+    };
+  }
+
+  // Detectar diferentes provedores cloud
+  if (databaseUrl.includes("supabase.co")) {
+    console.log(
+      `🔍 [DATABASE] Detectado Supabase - configuração SSL específica`,
+    );
+    return {
+      rejectUnauthorized: false,
+      require: true,
+      ca: undefined, // Deixar o Supabase gerenciar o certificado
+    };
+  }
+
+  if (databaseUrl.includes("neon.") || databaseUrl.includes("render.")) {
     console.log(`🔍 [DATABASE] Detectado provedor cloud - configurando SSL`);
     return {
       rejectUnauthorized: false,
@@ -64,12 +84,16 @@ function createPoolConfig() {
     max: 20, // máximo de conexões simultâneas
     min: 2, // mínimo de conexões mantidas
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-    acquireTimeoutMillis: 10000,
+    connectionTimeoutMillis: 15000, // Aumentado para Supabase
+    acquireTimeoutMillis: 15000, // Aumentado para Supabase
     // Configurações para produção
     query_timeout: 30000,
     statement_timeout: 30000,
     idle_in_transaction_session_timeout: 30000,
+    // Configurações específicas para melhor compatibilidade
+    application_name: "doutor-agenda",
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   };
 
   console.log(`🗄️ [DATABASE] Configuração da pool:`, {
@@ -77,6 +101,7 @@ function createPoolConfig() {
     max: config.max,
     min: config.min,
     connectionTimeoutMillis: config.connectionTimeoutMillis,
+    keepAlive: config.keepAlive,
   });
 
   return config;
@@ -94,6 +119,8 @@ pool.on("error", (err) => {
     code: (err as any).code,
     errno: (err as any).errno,
     syscall: (err as any).syscall,
+    address: (err as any).address,
+    port: (err as any).port,
   });
 });
 
@@ -150,6 +177,8 @@ async function testConnection() {
         code: (error as any)?.code,
         errno: (error as any)?.errno,
         syscall: (error as any)?.syscall,
+        address: (error as any)?.address,
+        port: (error as any)?.port,
       });
 
       if (attempts === maxAttempts) {
