@@ -10,6 +10,10 @@ import {
   paymentTransactionsTable,
 } from "@/db/schema";
 import { logDataOperation } from "@/helpers/audit-logger";
+import {
+  prepareAppointmentWebhookData,
+  sendAppointmentWebhook,
+} from "@/helpers/n8n-webhook";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -188,6 +192,34 @@ export const processPayment = actionClient
         clientInput: totalInputByClient, // Valor dado pelo cliente
         change: changeAmountInCents, // Troco a ser devolvido
       });
+
+      // Enviar webhook para n8n se o pagamento foi concluído
+      if (paymentStatus === "pago") {
+        try {
+          // Buscar dados completos do agendamento
+          const appointmentData = await db.query.appointmentsTable.findFirst({
+            where: (appointments, { eq }) =>
+              eq(appointments.id, parsedInput.appointmentId),
+            with: {
+              patient: true,
+              doctor: true,
+              clinic: true,
+            },
+          });
+
+          if (appointmentData) {
+            const webhookData = prepareAppointmentWebhookData(
+              appointmentData,
+              "pago",
+              process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+            );
+            await sendAppointmentWebhook(webhookData);
+          }
+        } catch (error) {
+          console.error("❌ Erro ao enviar webhook n8n:", error);
+          // Não falhar o pagamento por causa do webhook
+        }
+      }
 
       revalidatePath("/billing");
       revalidatePath("/appointments");

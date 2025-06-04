@@ -7,6 +7,10 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
+import {
+  prepareAppointmentWebhookData,
+  sendAppointmentWebhook,
+} from "@/helpers/n8n-webhook";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
@@ -30,6 +34,24 @@ export const updateAppointmentStatus = actionClient
       throw new Error("Clinic not found");
     }
 
+    // Buscar dados completos do agendamento antes da atualização
+    const appointmentData = await db.query.appointmentsTable.findFirst({
+      where: (appointments, { eq, and }) =>
+        and(
+          eq(appointments.id, parsedInput.id),
+          eq(appointments.clinicId, session.user.clinic.id),
+        ),
+      with: {
+        patient: true,
+        doctor: true,
+        clinic: true,
+      },
+    });
+
+    if (!appointmentData) {
+      throw new Error("Agendamento não encontrado");
+    }
+
     // Atualiza o status do agendamento
     await db
       .update(appointmentsTable)
@@ -38,8 +60,23 @@ export const updateAppointmentStatus = actionClient
         updatedAt: new Date(),
       })
       .where(
-        sql`${appointmentsTable.id} = ${parsedInput.id} AND ${appointmentsTable.clinicId} = ${session.user.clinic.id}`
+        sql`${appointmentsTable.id} = ${parsedInput.id} AND ${appointmentsTable.clinicId} = ${session.user.clinic.id}`,
       );
 
+    // Enviar webhook para n8n se o status for relevante
+    if (["confirmado", "cancelado"].includes(parsedInput.status)) {
+      try {
+        const webhookData = prepareAppointmentWebhookData(
+          appointmentData,
+          parsedInput.status as "confirmado" | "cancelado",
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        );
+        await sendAppointmentWebhook(webhookData);
+      } catch (error) {
+        console.error("❌ Erro ao enviar webhook n8n:", error);
+        // Não falhar a atualização por causa do webhook
+      }
+    }
+
     revalidatePath("/appointments");
-  }); 
+  });

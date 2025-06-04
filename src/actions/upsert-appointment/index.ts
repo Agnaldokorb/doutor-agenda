@@ -6,6 +6,10 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
 import { logDataOperation } from "@/helpers/audit-logger";
+import {
+  prepareAppointmentWebhookData,
+  sendAppointmentWebhook,
+} from "@/helpers/n8n-webhook";
 import { convertUTCMinus3ToUTC } from "@/helpers/timezone";
 import { auth } from "@/lib/auth";
 import { emailService } from "@/lib/email-service";
@@ -96,6 +100,7 @@ export const upsertAppointment = actionClient
         with: {
           patient: true,
           doctor: true,
+          clinic: true,
         },
       });
 
@@ -149,6 +154,21 @@ export const upsertAppointment = actionClient
         } catch (error) {
           console.error("❌ Erro ao enviar email de reagendamento:", error);
           // Não falhar o agendamento por causa do email
+        }
+      }
+
+      // Enviar webhook para n8n (apenas para novos agendamentos)
+      if (!isEdit) {
+        try {
+          const webhookData = prepareAppointmentWebhookData(
+            appointmentData,
+            "agendado",
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          );
+          await sendAppointmentWebhook(webhookData);
+        } catch (error) {
+          console.error("❌ Erro ao enviar webhook n8n:", error);
+          // Não falhar o agendamento por causa do webhook
         }
       }
 
