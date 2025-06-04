@@ -1,108 +1,282 @@
 <!doctype html>
 <html>
   <head>
-    <title>Debug Auth</title>
+    <title>Debug Auth - Deploy Vercel</title>
     <style>
       body {
         font-family: Arial, sans-serif;
         padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       }
       .form {
         margin: 20px 0;
         padding: 20px;
-        border: 1px solid #ccc;
+        border: 1px solid #ddd;
+        border-radius: 6px;
       }
       .result {
         margin: 10px 0;
-        padding: 10px;
-        background: #f5f5f5;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-all;
       }
       .error {
-        background: #ffeeee;
-        color: red;
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ffcdd2;
       }
       .success {
-        background: #eeffee;
-        color: green;
+        background: #e8f5e8;
+        color: #2e7b32;
+        border: 1px solid #c8e6c9;
+      }
+      .loading {
+        background: #fff3e0;
+        color: #f57c00;
+        border: 1px solid #ffcc02;
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #1976d2;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px 5px 5px 0;
+      }
+      button:hover {
+        background: #1565c0;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .debug-info {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
       }
     </style>
   </head>
   <body>
-    <h1>Debug Autenticação</h1>
+    <div class="container">
+      <h1>🔧 Debug Auth - Deploy Vercel</h1>
 
-    <div class="form">
-      <h2>1. Criar Usuário</h2>
-      <input type="text" id="regName" placeholder="Nome" value="Admin Teste" />
-      <input
-        type="email"
-        id="regEmail"
-        placeholder="Email"
-        value="admin@teste.com"
-      />
-      <input
-        type="password"
-        id="regPassword"
-        placeholder="Senha"
-        value="123456789"
-      />
-      <button onclick="createUser()">Criar Usuário</button>
-      <div id="regResult" class="result"></div>
-    </div>
+      <div class="debug-info">
+        <h3>ℹ️ Informações do Ambiente</h3>
+        <p><strong>URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+      </div>
 
-    <div class="form">
-      <h2>2. Fazer Login</h2>
-      <input
-        type="email"
-        id="loginEmail"
-        placeholder="Email"
-        value="admin@teste.com"
-      />
-      <input
-        type="password"
-        id="loginPassword"
-        placeholder="Senha"
-        value="123456789"
-      />
-      <button onclick="loginUser()">Login</button>
-      <div id="loginResult" class="result"></div>
+      <div class="form">
+        <h2>🩺 1. Testar Health Check</h2>
+        <button onclick="testHealthCheck()">Verificar API</button>
+        <div id="healthResult" class="result"></div>
+      </div>
+
+      <div class="form">
+        <h2>🗄️ 2. Testar Conexão com Banco</h2>
+        <button onclick="testDatabase()">Testar Banco</button>
+        <div id="dbResult" class="result"></div>
+      </div>
+
+      <div class="form">
+        <h2>👤 3. Criar Usuário (com detalhes do erro)</h2>
+        <input
+          type="text"
+          id="regName"
+          placeholder="Nome"
+          value="Admin Teste"
+        />
+        <input
+          type="email"
+          id="regEmail"
+          placeholder="Email"
+          value="admin@teste.com"
+        />
+        <input
+          type="password"
+          id="regPassword"
+          placeholder="Senha"
+          value="123456789"
+        />
+        <input
+          type="text"
+          id="regClinic"
+          placeholder="Nome da Clínica"
+          value="Clínica Teste"
+        />
+        <label>
+          <input type="checkbox" id="regPrivacy" checked />
+          Aceito a Política de Privacidade
+        </label>
+        <br /><br />
+        <button onclick="createUser()">Criar Usuário</button>
+        <div id="regResult" class="result"></div>
+      </div>
+
+      <div class="form">
+        <h2>🔐 4. Fazer Login</h2>
+        <input
+          type="email"
+          id="loginEmail"
+          placeholder="Email"
+          value="admin@teste.com"
+        />
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Senha"
+          value="123456789"
+        />
+        <button onclick="loginUser()">Login</button>
+        <div id="loginResult" class="result"></div>
+      </div>
+
+      <div class="form">
+        <h2>📧 5. Testar Email</h2>
+        <input
+          type="email"
+          id="testEmail"
+          placeholder="Seu email para teste"
+          value=""
+        />
+        <button onclick="testEmail()">Testar Email</button>
+        <div id="emailResult" class="result"></div>
+      </div>
     </div>
 
     <script>
-      async function createUser() {
-        const result = document.getElementById("regResult");
-        result.innerHTML = "Criando usuário...";
+      // Preencher informações do ambiente
+      document.getElementById("currentUrl").textContent = window.location.href;
+      document.getElementById("userAgent").textContent = navigator.userAgent;
+      document.getElementById("timestamp").textContent =
+        new Date().toISOString();
+
+      async function testHealthCheck() {
+        const result = document.getElementById("healthResult");
+        result.className = "result loading";
+        result.textContent = "Testando API...";
 
         try {
-          const response = await fetch("/api/auth/sign-up/email", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: document.getElementById("regName").value,
-              email: document.getElementById("regEmail").value,
-              password: document.getElementById("regPassword").value,
-            }),
+          const response = await fetch("/api/health", {
+            method: "GET",
           });
 
           const data = await response.text();
 
           if (response.ok) {
             result.className = "result success";
-            result.innerHTML = "Usuário criado com sucesso!<br>" + data;
+            result.textContent = `✅ API OK (${response.status})\n${data}`;
           } else {
             result.className = "result error";
-            result.innerHTML = `Erro ${response.status}: ${data}`;
+            result.textContent = `❌ API Error (${response.status})\n${data}`;
           }
         } catch (error) {
           result.className = "result error";
-          result.innerHTML = "Erro: " + error.message;
+          result.textContent = `❌ Network Error: ${error.message}`;
+        }
+      }
+
+      async function testDatabase() {
+        const result = document.getElementById("dbResult");
+        result.className = "result loading";
+        result.textContent = "Testando conexão com banco...";
+
+        try {
+          const response = await fetch("/api/debug-db", {
+            method: "GET",
+          });
+
+          const data = await response.text();
+
+          if (response.ok) {
+            result.className = "result success";
+            result.textContent = `✅ Banco OK (${response.status})\n${data}`;
+          } else {
+            result.className = "result error";
+            result.textContent = `❌ Banco Error (${response.status})\n${data}`;
+          }
+        } catch (error) {
+          result.className = "result error";
+          result.textContent = `❌ Database Error: ${error.message}`;
+        }
+      }
+
+      async function createUser() {
+        const result = document.getElementById("regResult");
+        result.className = "result loading";
+        result.textContent = "Criando usuário...";
+
+        const userData = {
+          name: document.getElementById("regName").value,
+          email: document.getElementById("regEmail").value,
+          password: document.getElementById("regPassword").value,
+          clinicName: document.getElementById("regClinic").value,
+          privacyPolicyAccepted: document.getElementById("regPrivacy").checked,
+        };
+
+        console.log("📊 Enviando dados:", userData);
+
+        try {
+          const response = await fetch("/api/debug-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(userData),
+          });
+
+          const responseText = await response.text();
+          console.log("📨 Resposta:", responseText);
+
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = { raw: responseText };
+          }
+
+          if (response.ok) {
+            result.className = "result success";
+            result.textContent = `✅ Usuário criado com sucesso!\n\nStatus: ${response.status}\nResposta: ${JSON.stringify(data, null, 2)}`;
+          } else {
+            result.className = "result error";
+            result.textContent = `❌ Erro ${response.status}\n\nResposta completa:\n${JSON.stringify(data, null, 2)}\n\nRaw response:\n${responseText}`;
+          }
+        } catch (error) {
+          result.className = "result error";
+          result.textContent = `❌ Network/Parse Error:\n${error.message}\n\nStack:\n${error.stack}`;
+          console.error("❌ Erro completo:", error);
         }
       }
 
       async function loginUser() {
         const result = document.getElementById("loginResult");
-        result.innerHTML = "Fazendo login...";
+        result.className = "result loading";
+        result.textContent = "Fazendo login...";
 
         try {
           const response = await fetch("/api/auth/sign-in/email", {
@@ -116,18 +290,70 @@
             }),
           });
 
-          const data = await response.text();
+          const responseText = await response.text();
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = { raw: responseText };
+          }
 
           if (response.ok) {
             result.className = "result success";
-            result.innerHTML = "Login realizado com sucesso!<br>" + data;
+            result.textContent = `✅ Login realizado com sucesso!\n\n${JSON.stringify(data, null, 2)}`;
           } else {
             result.className = "result error";
-            result.innerHTML = `Erro ${response.status}: ${data}`;
+            result.textContent = `❌ Erro ${response.status}\n\n${JSON.stringify(data, null, 2)}\n\nRaw: ${responseText}`;
           }
         } catch (error) {
           result.className = "result error";
-          result.innerHTML = "Erro: " + error.message;
+          result.textContent = `❌ Login Error: ${error.message}`;
+        }
+      }
+
+      async function testEmail() {
+        const result = document.getElementById("emailResult");
+        const email = document.getElementById("testEmail").value;
+
+        if (!email) {
+          result.className = "result error";
+          result.textContent = "❌ Por favor, digite um email para teste";
+          return;
+        }
+
+        result.className = "result loading";
+        result.textContent = "Testando envio de email...";
+
+        try {
+          const response = await fetch("/api/email/test", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "connection",
+              email: email,
+            }),
+          });
+
+          const responseText = await response.text();
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = { raw: responseText };
+          }
+
+          if (response.ok) {
+            result.className = "result success";
+            result.textContent = `✅ Email testado com sucesso!\n\n${JSON.stringify(data, null, 2)}`;
+          } else {
+            result.className = "result error";
+            result.textContent = `❌ Erro ${response.status}\n\n${JSON.stringify(data, null, 2)}`;
+          }
+        } catch (error) {
+          result.className = "result error";
+          result.textContent = `❌ Email Error: ${error.message}`;
         }
       }
     </script>

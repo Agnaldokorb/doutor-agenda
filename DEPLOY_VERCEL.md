@@ -78,12 +78,12 @@ Valor: resend._domainkey.amazonses.com
    - **Root Directory**: `./`
    - **Build Command**: `npm run build` (padrão)
 
-### **Configurar Variáveis de Ambiente**
+### **⚠️ CONFIGURAÇÃO CRÍTICA: Variáveis de Ambiente**
 
-Na Vercel, vá em **Settings** → **Environment Variables** e adicione:
+Na Vercel, vá em **Settings** → **Environment Variables** e adicione **EXATAMENTE** estas variáveis:
 
 ```env
-# 🔐 AUTENTICAÇÃO
+# 🔐 AUTENTICAÇÃO - ATENÇÃO: Use BETTER_AUTH_SECRET!
 BETTER_AUTH_SECRET=sua-chave-secreta-256-bits-aqui
 BETTER_AUTH_URL=https://med.novocode.com.br
 
@@ -108,6 +108,14 @@ NODE_ENV=production
 NEXT_PUBLIC_APP_URL=https://med.novocode.com.br
 ```
 
+### **🚨 ATENÇÃO: Problema Comum - Auth Secret**
+
+**PROBLEMA**: Erro `{error: {...}, input: {...}}` ao criar conta
+
+**CAUSA**: BetterAuth espera `BETTER_AUTH_SECRET` mas muitos guias usam `AUTH_SECRET`
+
+**SOLUÇÃO**: Use `BETTER_AUTH_SECRET` (não `AUTH_SECRET`)
+
 ### **Fazer Deploy**
 
 1. **Clique em Deploy**
@@ -116,7 +124,33 @@ NEXT_PUBLIC_APP_URL=https://med.novocode.com.br
 
 ---
 
-## 🌐 **4. Configurar Domínio Customizado**
+## 🐛 **4. Debug de Problemas**
+
+### **Se der erro ao criar conta:**
+
+1. **Acesse**: `https://seu-dominio.vercel.app/debug-auth.html`
+2. **Teste** cada etapa:
+   - Health Check
+   - Conexão com Banco
+   - Criação de Usuário
+3. **Verifique logs** no dashboard da Vercel
+
+### **Comandos de Debug:**
+
+```bash
+# Verificar variáveis na Vercel
+vercel env ls
+
+# Ver logs em tempo real
+vercel logs
+
+# Build local para testar
+npm run build
+```
+
+---
+
+## 🌐 **5. Configurar Domínio Customizado**
 
 ### **Na Vercel**
 
@@ -141,7 +175,7 @@ Valor: cname.vercel-dns.com
 
 ---
 
-## 🗄️ **5. Configurar Banco em Produção**
+## 🗄️ **6. Configurar Banco em Produção**
 
 ### **Executar Migrations**
 
@@ -158,8 +192,8 @@ npx drizzle-kit push
 2. **Criar usuário admin inicial**:
 
 ```bash
-# Execute o script de criação de usuário
-npm run create-admin
+# Use o debug para criar primeiro usuário
+# Acesse: https://seu-dominio/debug-auth.html
 ```
 
 ### **Verificar Estrutura**
@@ -177,7 +211,7 @@ Certifique-se que todas as tabelas foram criadas:
 
 ---
 
-## 🔒 **6. Configurações de Segurança**
+## 🔒 **7. Configurações de Segurança**
 
 ### **Headers de Segurança** ✅
 
@@ -200,22 +234,33 @@ Automático com Vercel + domínio customizado
 
 ---
 
-## 📧 **7. Testar Sistema em Produção**
+## 📧 **8. Testar Sistema em Produção**
 
 ### **Checklist de Testes**
 
-1. ✅ **Login** funcionando
-2. ✅ **Cadastro** de clínica
-3. ✅ **Envio de emails** (teste)
-4. ✅ **Upload** de arquivos
-5. ✅ **Criação** de agendamentos
-6. ✅ **Backup** e restore
-7. ✅ **Segurança** (logs)
+1. ✅ **Health Check**: `/api/health`
+2. ✅ **Banco**: `/api/debug-db`
+3. ✅ **Criação conta**: `/debug-auth.html`
+4. ✅ **Login** funcionando
+5. ✅ **Envio de emails** (teste)
+6. ✅ **Upload** de arquivos
+7. ✅ **Criação** de agendamentos
+8. ✅ **Backup** e restore
+9. ✅ **Segurança** (logs)
 
-### **Comando de Teste**
+### **URLs de Debug**
 
 ```bash
-# Testar emails em produção
+# Health check da API
+https://med.novocode.com.br/api/health
+
+# Teste de banco
+https://med.novocode.com.br/api/debug-db
+
+# Debug completo
+https://med.novocode.com.br/debug-auth.html
+
+# Testar emails
 curl -X POST https://med.novocode.com.br/api/email/test \
   -H "Content-Type: application/json" \
   -d '{"type":"connection","email":"seu-email@exemplo.com"}'
@@ -223,7 +268,7 @@ curl -X POST https://med.novocode.com.br/api/email/test \
 
 ---
 
-## 🔧 **8. Monitoramento**
+## 🔧 **9. Monitoramento**
 
 ### **Logs da Vercel**
 
@@ -241,9 +286,21 @@ Configure alertas para:
 
 ---
 
-## 🆘 **9. Troubleshooting**
+## 🆘 **10. Troubleshooting**
 
-### **Build Falhando**
+### **❌ Erro: Auth Secret**
+
+```
+{error: {...}, input: {...}}
+```
+
+**Solução**:
+
+- Verificar se `BETTER_AUTH_SECRET` está configurada
+- Não usar `AUTH_SECRET` (variável antiga)
+- Usar string de 256+ bits
+
+### **❌ Build Falhando**
 
 ```bash
 # Verificar localmente
@@ -253,28 +310,34 @@ npm run build
 vercel logs
 ```
 
-### **Banco não Conecta**
+### **❌ Banco não Conecta**
 
 - ✅ Verificar URL de conexão
 - ✅ SSL habilitado (`?sslmode=require`)
 - ✅ Firewall liberado para IPs da Vercel
 
-### **Emails não Enviam**
+### **❌ Emails não Enviam**
 
 - ✅ Domínio verificado no Resend
 - ✅ API Key válida
 - ✅ DNS configurado corretamente
 
-### **Variáveis de Ambiente**
+### **❌ Função Timeout**
 
-```bash
-# Verificar se estão configuradas
-vercel env ls
+```json
+// vercel.json
+{
+  "functions": {
+    "src/app/api/auth/[...all]/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
 ```
 
 ---
 
-## ✅ **10. Deploy Concluído**
+## ✅ **11. Deploy Concluído**
 
 Após seguir todos os passos:
 
@@ -293,12 +356,26 @@ Após seguir todos os passos:
 
 ---
 
+## 🚨 **PROBLEMAS COMUNS E SOLUÇÕES**
+
+| Problema                       | Causa                                        | Solução                        |
+| ------------------------------ | -------------------------------------------- | ------------------------------ |
+| `{error: {...}, input: {...}}` | `AUTH_SECRET` em vez de `BETTER_AUTH_SECRET` | Usar `BETTER_AUTH_SECRET`      |
+| Build falha                    | Erro de TypeScript                           | `npm run build` local primeiro |
+| Email não envia                | Domínio não verificado                       | Verificar domínio no Resend    |
+| Banco não conecta              | SSL ou URL incorreta                         | Verificar `?sslmode=require`   |
+| 404 no domínio                 | DNS não propagou                             | Aguardar propagação DNS        |
+| Função timeout                 | Sem configuração                             | Verificar `vercel.json`        |
+
+---
+
 ## 📞 **Suporte**
 
 **Problemas técnicos:**
 
 - Vercel: [vercel.com/support](https://vercel.com/support)
 - Resend: [resend.com/support](https://resend.com/support)
+- Debug: `https://seu-dominio/debug-auth.html`
 
 **Dúvidas sobre LGPD:**
 
@@ -307,4 +384,5 @@ Após seguir todos os passos:
 ---
 
 **🚀 NovoCod Med - Sistema de Gestão Médica**  
-**🌐 https://med.novocode.com.br**
+**🌐 https://med.novocode.com.br**  
+**🔧 Debug: https://med.novocode.com.br/debug-auth.html**

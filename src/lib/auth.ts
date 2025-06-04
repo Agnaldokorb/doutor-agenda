@@ -7,10 +7,30 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { usersToClinicsTable } from "@/db/schema";
 
+// Debug das variáveis de ambiente
+console.log("🔐 [AUTH CONFIG] Configurando BetterAuth...");
+console.log(
+  "🔐 [AUTH CONFIG] NEXT_PUBLIC_APP_URL:",
+  process.env.NEXT_PUBLIC_APP_URL,
+);
+console.log(
+  "🔐 [AUTH CONFIG] BETTER_AUTH_SECRET present:",
+  !!process.env.BETTER_AUTH_SECRET,
+);
+console.log("🔐 [AUTH CONFIG] AUTH_SECRET present:", !!process.env.AUTH_SECRET);
+console.log(
+  "🔐 [AUTH CONFIG] DATABASE_URL present:",
+  !!process.env.DATABASE_URL,
+);
+console.log("🔐 [AUTH CONFIG] NODE_ENV:", process.env.NODE_ENV);
+
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  // Configuração mais permissiva para desenvolvimento
-  secret: process.env.AUTH_SECRET || "dev-secret-key",
+  // Usar BETTER_AUTH_SECRET primeiro, depois AUTH_SECRET como fallback
+  secret:
+    process.env.BETTER_AUTH_SECRET ||
+    process.env.AUTH_SECRET ||
+    "dev-secret-key-change-in-production",
   database: drizzleAdapter(db, {
     provider: "pg",
     usePlural: true,
@@ -20,6 +40,7 @@ export const auth = betterAuth({
     "http://localhost:3000",
     "http://localhost:3001",
     "https://*.vercel.app",
+    "https://med.novocode.com.br",
     ...(process.env.NEXT_PUBLIC_APP_URL
       ? [process.env.NEXT_PUBLIC_APP_URL]
       : []),
@@ -61,32 +82,51 @@ export const auth = betterAuth({
   },
   plugins: [
     customSession(async ({ user, session }) => {
-      const clinics = await db.query.usersToClinicsTable.findMany({
-        where: eq(usersToClinicsTable.userId, user.id),
-        with: {
-          clinic: true,
-        },
-      });
+      try {
+        const clinics = await db.query.usersToClinicsTable.findMany({
+          where: eq(usersToClinicsTable.userId, user.id),
+          with: {
+            clinic: true,
+          },
+        });
 
-      // Buscar informações completas do usuário incluindo o tipo
-      const fullUser = await db.query.usersTable.findFirst({
-        where: eq(schema.usersTable.id, user.id),
-      });
+        // Buscar informações completas do usuário incluindo o tipo
+        const fullUser = await db.query.usersTable.findFirst({
+          where: eq(schema.usersTable.id, user.id),
+        });
 
-      // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
-      const clinic = clinics?.[0];
-      return {
-        user: {
-          ...user,
-          userType: fullUser?.userType || "admin",
-          mustChangePassword: fullUser?.mustChangePassword || false,
-          clinic: clinic?.clinicId ? clinic?.clinic : undefined,
-          // Dados LGPD
-          privacyPolicyAccepted: fullUser?.privacyPolicyAccepted || false,
-          privacyPolicyVersion: fullUser?.privacyPolicyVersion || "1.0",
-        },
-        session,
-      };
+        // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
+        const clinic = clinics?.[0];
+        return {
+          user: {
+            ...user,
+            userType: fullUser?.userType || "admin",
+            mustChangePassword: fullUser?.mustChangePassword || false,
+            clinic: clinic?.clinicId ? clinic?.clinic : undefined,
+            // Dados LGPD
+            privacyPolicyAccepted: fullUser?.privacyPolicyAccepted || false,
+            privacyPolicyVersion: fullUser?.privacyPolicyVersion || "1.0",
+          },
+          session,
+        };
+      } catch (error) {
+        console.error(
+          "❌ [AUTH SESSION] Erro ao buscar dados da sessão:",
+          error,
+        );
+        // Retornar dados básicos em caso de erro
+        return {
+          user: {
+            ...user,
+            userType: "admin",
+            mustChangePassword: false,
+            clinic: undefined,
+            privacyPolicyAccepted: false,
+            privacyPolicyVersion: "1.0",
+          },
+          session,
+        };
+      }
     }),
   ],
   user: {
@@ -137,7 +177,7 @@ export const auth = betterAuth({
   },
   // Rate limiting para proteção contra ataques
   rateLimit: {
-    enabled: true,
+    enabled: process.env.NODE_ENV === "production",
     window: 60, // 1 minuto
     max: 10, // máximo 10 tentativas por minuto
   },
@@ -147,3 +187,5 @@ export const auth = betterAuth({
     cookieName: "better-auth.csrf_token",
   },
 });
+
+console.log("✅ [AUTH CONFIG] BetterAuth configurado com sucesso");
