@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: *.googleusercontent.com *.ufs.sh utfs.io uploadthing.com *.uploadthing.com",
-              "connect-src 'self' https://api.uploadthing.com https://uploadthing.com https://accounts.google.com",
+              "connect-src 'self' https://api.uploadthing.com https://uploadthing.com https://accounts.google.com https://med.novocode.com.br https://*.vercel.app",
               "frame-src 'self' https://accounts.google.com",
               "object-src 'none'",
               "base-uri 'self'",
