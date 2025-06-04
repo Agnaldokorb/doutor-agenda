@@ -21,8 +21,8 @@ interface EmailOptions {
 // Configurações padrão
 export const emailConfig = {
   from: {
-    email: process.env.RESEND_FROM_EMAIL || "noreply@doutorAgenda.com",
-    name: process.env.RESEND_FROM_NAME || "Doutor Agenda",
+    email: process.env.RESEND_FROM_EMAIL || "noreply@med.novocode.com.br",
+    name: process.env.RESEND_FROM_NAME || "NovoCod Med",
   },
 };
 

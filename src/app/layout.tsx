@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Doutor Agenda",
-  description: "Sistema de gestão de consultas médicas",
+  title: "NovoCod Med",
+  description: "Sistema de gestão médica",
 };
 
 export const viewport: Viewport = {

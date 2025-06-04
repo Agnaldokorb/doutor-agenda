@@ -210,7 +210,7 @@ Este backup contém dados pessoais e sensíveis conforme a Lei Geral de Proteç�
 5. Este backup só pode ser restaurado na clínica de origem
 
 ### Para Restaurar:
-1. Acesse o sistema Doutor Agenda
+1. Acesse o sistema NovoCod Med
 2. Vá em Configurações > Backup e Dados
 3. Clique em "Restaurar"
 4. Selecione este arquivo ZIP
@@ -279,7 +279,7 @@ Compactação: ZIP
 
     return {
       success: true,
-      backup: zipBuffer.toString('base64'),
+      backup: zipBuffer.toString("base64"),
       filename: `backup-${clinic?.name?.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.zip`,
       statistics: {
         ...backupData.statistics,

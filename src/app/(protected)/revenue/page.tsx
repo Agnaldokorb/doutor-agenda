@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { RevenueContent } from "./_components/revenue-content";
 
 export const metadata: Metadata = {
-  title: "Faturamento | Doutor Agenda",
+  title: "Faturamento | NovoCod Med",
   description: "Relatórios detalhados de faturamento da clínica",
 };
 

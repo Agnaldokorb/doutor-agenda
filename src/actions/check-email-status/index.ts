@@ -56,7 +56,7 @@ export const checkEmailStatus = actionClient.action(async () => {
           connectionTest,
           // Informações do Resend
           fromEmail: resendFromEmail || "não configurado",
-          fromName: resendFromName || "Doutor Agenda",
+          fromName: resendFromName || "NovoCod Med",
           clinicId,
           clinicName: userClinic.clinic.name,
           timestamp: new Date().toISOString(),

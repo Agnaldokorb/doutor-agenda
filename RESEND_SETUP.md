@@ -5,6 +5,7 @@ O Resend é uma biblioteca moderna de email que resolve os problemas complexos d
 ## 📋 **Por que Migrar do SMTP para Resend?**
 
 ### ❌ **Problemas com SMTP Tradicional:**
+
 - Erros de autenticação complexos (535 5.7.8)
 - Configurações diferentes para cada provedor
 - Problemas de firewall e TLS
@@ -12,6 +13,7 @@ O Resend é uma biblioteca moderna de email que resolve os problemas complexos d
 - Rate limiting inconsistente
 
 ### ✅ **Vantagens do Resend:**
+
 - **Zero configuração SMTP** - API HTTP simples
 - **Entrega garantida** - 99%+ de entregabilidade
 - **Setup em 2 minutos** - Apenas uma API key
@@ -58,7 +60,7 @@ Valor: "v=DMARC1; p=quarantine; rua=mailto:dmarc@seudominio.com"
 
 1. **No dashboard**, vá em "API Keys"
 2. **Clique em "Create API Key"**
-3. **Digite um nome** (ex: "Doutor Agenda Production")
+3. **Digite um nome** (ex: "NovoCod Med Production")
 4. **Selecione permissões**: "Send emails"
 5. **Copie a API key** (começa com `re_`)
 
@@ -70,12 +72,13 @@ Adicione no seu `.env.local`:
 
 ```env
 # Email - Resend
-RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxxxx"
-RESEND_FROM_EMAIL="noreply@seudominio.com"
-RESEND_FROM_NAME="Doutor Agenda"
+RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+RESEND_FROM_EMAIL="noreply@med.novocode.com.br"
+RESEND_FROM_NAME="NovoCod Med"
 ```
 
 **Valores recomendados:**
+
 - `RESEND_FROM_EMAIL`: Use `noreply@seudominio.com` (ou `onboarding@resend.dev` para teste)
 - `RESEND_FROM_NAME`: Nome amigável da sua clínica
 
@@ -90,24 +93,26 @@ RESEND_FROM_NAME="Doutor Agenda"
 ## 📧 **Configurações de Email**
 
 ### **Para Teste (Domínio Resend):**
+
 ```env
 RESEND_FROM_EMAIL="onboarding@resend.dev"
-RESEND_FROM_NAME="Doutor Agenda"
+RESEND_FROM_NAME="NovoCod Med"
 ```
 
 ### **Para Produção (Seu Domínio):**
+
 ```env
-RESEND_FROM_EMAIL="noreply@clinica.com"
-RESEND_FROM_NAME="Clínica Médica"
+RESEND_FROM_EMAIL="noreply@med.novocode.com.br"
+RESEND_FROM_NAME="NovoCod Med"
 ```
 
 ## 🏷️ **Preços do Resend**
 
-| Plano | Emails/mês | Preço | Ideal para |
-|-------|------------|-------|------------|
-| **Free** | 3.000 | Grátis | Testes e desenvolvimento |
-| **Pro** | 50.000 | $20/mês | Pequenas clínicas |
-| **Business** | 100.000 | $80/mês | Clínicas médias |
+| Plano        | Emails/mês | Preço   | Ideal para               |
+| ------------ | ---------- | ------- | ------------------------ |
+| **Free**     | 3.000      | Grátis  | Testes e desenvolvimento |
+| **Pro**      | 50.000     | $20/mês | Pequenas clínicas        |
+| **Business** | 100.000    | $80/mês | Clínicas médias          |
 
 💡 **Cálculo**: Uma clínica com 100 pacientes/mês enviando 3 emails cada = 300 emails/mês (Free é suficiente!)
 
@@ -116,6 +121,7 @@ RESEND_FROM_NAME="Clínica Médica"
 Se o Resend estiver funcionando bem, você pode remover as configurações SMTP:
 
 ### **1. Remover Variáveis de Ambiente:**
+
 ```env
 # Pode remover essas linhas do .env.local:
 # SMTP_HOST=
@@ -126,12 +132,14 @@ Se o Resend estiver funcionando bem, você pode remover as configurações SMTP:
 ```
 
 ### **2. Remover Dependências (Opcional):**
+
 ```bash
 npm uninstall nodemailer
 npm uninstall @types/nodemailer
 ```
 
 ### **3. Arquivar Arquivos Antigos:**
+
 ```bash
 # Mover arquivos antigos para pasta de backup
 mkdir src/lib/legacy-smtp
@@ -142,21 +150,25 @@ mv src/lib/crypto.ts src/lib/legacy-smtp/
 ## 🔧 **Troubleshooting**
 
 ### **Erro: "RESEND_API_KEY é obrigatória"**
+
 - ✅ Verifique se a variável está no `.env.local`
 - ✅ Reinicie o servidor após adicionar a variável
 - ✅ Certifique-se que a API key começa com `re_`
 
 ### **Erro: "Email não autorizado"**
+
 - ✅ Use `onboarding@resend.dev` para testes
 - ✅ Para produção, configure e verifique seu domínio
 - ✅ Aguarde até 24h após configurar DNS
 
 ### **Emails não chegam:**
+
 - ✅ Verifique a pasta de spam
 - ✅ Confirme se o domínio está verificado
 - ✅ Veja os logs no dashboard do Resend
 
 ### **Rate Limit:**
+
 - ✅ Free: 100 emails/dia, 1 email/segundo
 - ✅ Aguarde ou faça upgrade do plano
 - ✅ Implemente delay entre emails se necessário
@@ -164,12 +176,14 @@ mv src/lib/crypto.ts src/lib/legacy-smtp/
 ## 📊 **Monitoramento**
 
 ### **Dashboard do Resend:**
+
 - **Emails enviados** em tempo real
 - **Bounces e reclamações**
 - **Logs detalhados** de cada email
 - **Estatísticas** de entrega
 
 ### **Logs da Aplicação:**
+
 ```
 ✅ Serviço Resend inicializado com sucesso
 📧 Enviando email via Resend para: paciente@email.com
@@ -190,9 +204,9 @@ mv src/lib/crypto.ts src/lib/legacy-smtp/
 Após configurar o Resend:
 
 1. ✅ **Instalar**: `npm install resend` ✓
-2. ✅ **Configurar variáveis** de ambiente ✓  
+2. ✅ **Configurar variáveis** de ambiente ✓
 3. ✅ **Testar** envio de email ✓
 4. ✅ **Verificar** logs de sucesso ✓
 5. ✅ **Remover** configurações SMTP antigas (opcional)
 
-**🎉 Parabéns! Você migrou com sucesso do SMTP problemático para o Resend!** 
+**🎉 Parabéns! Você migrou com sucesso do SMTP problemático para o Resend!**

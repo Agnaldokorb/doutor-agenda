@@ -8,6 +8,42 @@
   "functions": {
     "src/app/api/email/send-reminders/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/auth/[...all]/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/clinic/route.ts": {
+      "maxDuration": 30
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/home",
+      "destination": "/dashboard",
+      "permanent": true
+    }
+  ]
 }

@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade | Doutor Agenda",
-  description: "Política de Privacidade em conformidade com a LGPD",
+  title: "Política de Privacidade | NovoCod Med",
+  description: "Política de Privacidade e Proteção de Dados",
 };
 
 const PrivacyPolicyPage = () => {
@@ -15,7 +15,7 @@ const PrivacyPolicyPage = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               📄 Política de Privacidade
             </h1>
-            <p className="mt-2 text-lg text-gray-600">Doutor Agenda</p>
+            <p className="mt-2 text-lg text-gray-600">NovoCod Med</p>
             <p className="mt-1 text-sm text-gray-500">
               Última atualização: {new Date().toLocaleDateString("pt-BR")}
             </p>
@@ -26,7 +26,7 @@ const PrivacyPolicyPage = () => {
             <div className="prose prose-gray max-w-none">
               <div className="rounded-lg border bg-blue-50 p-6">
                 <p className="text-sm leading-relaxed text-gray-700">
-                  A <strong>Doutor Agenda</strong>, pessoa jurídica de direito
+                  A <strong>NovoCod Med</strong>, pessoa jurídica de direito
                   privado, comprometida com a transparência e a segurança dos
                   dados, apresenta sua Política de Privacidade em conformidade
                   com a{" "}
@@ -115,7 +115,7 @@ const PrivacyPolicyPage = () => {
                     📧 Para exercer seus direitos, entre em contato:
                   </p>
                   <p className="text-sm text-green-700">
-                    E-mail: <strong>dpo@doutoragenda.com.br</strong>
+                    E-mail: <strong>dpo@med.novocode.com.br</strong>
                   </p>
                 </div>
               </section>
@@ -179,11 +179,11 @@ const PrivacyPolicyPage = () => {
                 </h2>
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                   <p className="text-sm font-medium text-blue-800">
-                    <strong>Responsável:</strong> Encarregado de Dados - Doutor
-                    Agenda
+                    <strong>Responsável:</strong> Encarregado de Dados - NovoCod
+                    Med
                   </p>
                   <p className="text-sm text-blue-700">
-                    <strong>Contato:</strong> 📧 dpo@doutoragenda.com.br
+                    <strong>Contato:</strong> 📧 dpo@med.novocode.com.br
                   </p>
                 </div>
               </section>

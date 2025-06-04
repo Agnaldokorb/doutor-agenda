@@ -10,7 +10,7 @@ const baseTemplate = (content: string) => `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doutor Agenda</title>
+    <title>NovoCod Med</title>
     <style>
         body {
             margin: 0;
@@ -115,13 +115,13 @@ const baseTemplate = (content: string) => `
 <body>
     <div class="container">
         <div class="header">
-            <h1>🩺 Doutor Agenda</h1>
+            <h1>🏥 NovoCod Med</h1>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p><strong>Doutor Agenda</strong> - Sistema de Gestão Médica</p>
+            <p><strong>NovoCod Med</strong> - Sistema de Gestão Médica</p>
             <p>Este é um email automático, não responda esta mensagem.</p>
             <p>Em caso de dúvidas, entre em contato com a clínica.</p>
         </div>

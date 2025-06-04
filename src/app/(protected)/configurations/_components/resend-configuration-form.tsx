@@ -29,7 +29,7 @@ export const ResendConfigurationForm = ({
   const [formData, setFormData] = useState({
     apiKey: process.env.RESEND_API_KEY || "",
     fromEmail: process.env.RESEND_FROM_EMAIL || "",
-    fromName: process.env.RESEND_FROM_NAME || "Doutor Agenda",
+    fromName: process.env.RESEND_FROM_NAME || "NovoCod Med",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -208,7 +208,7 @@ Reinicie o servidor após salvar!
                 <li>Registre-se com seu email e confirme a verificação</li>
                 <li>No dashboard, vá em "API Keys" → "Create API Key"</li>
                 <li>
-                  Dê um nome (ex: "Doutor Agenda") e selecione "Send emails"
+                  Dê um nome (ex: "NovoCod Med") e selecione "Send emails"
                 </li>
                 <li>Copie a API key (começa com "re_")</li>
               </ol>
@@ -251,7 +251,7 @@ Reinicie o servidor após salvar!
                 <Input
                   id="fromEmail"
                   type="email"
-                  placeholder="noreply@seudominio.com ou onboarding@resend.dev"
+                  placeholder="noreply@med.novocode.com.br ou onboarding@resend.dev"
                   value={formData.fromEmail}
                   onChange={(e) =>
                     handleInputChange("fromEmail", e.target.value)
@@ -269,7 +269,7 @@ Reinicie o servidor após salvar!
                 <Input
                   id="fromName"
                   type="text"
-                  placeholder="Doutor Agenda"
+                  placeholder="NovoCod Med"
                   value={formData.fromName}
                   onChange={(e) =>
                     handleInputChange("fromName", e.target.value)
