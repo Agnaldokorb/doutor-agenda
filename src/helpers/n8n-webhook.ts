@@ -79,7 +79,7 @@ export function prepareAppointmentWebhookData(
     appointmentPriceInCents: number;
     patient: { name: string };
     doctor: { name: string };
-    clinic?: { name: string; address?: string };
+    clinic?: { name: string; address?: string | null } | null;
   },
   status: AppointmentWebhookData["status"],
   baseUrl?: string,
@@ -93,10 +93,10 @@ export function prepareAppointmentWebhookData(
 
   // URLs para confirmação e cancelamento
   const confirmUrl = baseUrl
-    ? `${baseUrl}/appointments/${appointment.id}/confirm`
+    ? `${baseUrl}/api/appointments/${appointment.id}/confirm`
     : undefined;
   const cancelUrl = baseUrl
-    ? `${baseUrl}/appointments/${appointment.id}/cancel`
+    ? `${baseUrl}/api/appointments/${appointment.id}/cancel`
     : undefined;
 
   return {

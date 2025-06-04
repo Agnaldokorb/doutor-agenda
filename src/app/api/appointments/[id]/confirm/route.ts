@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
@@ -10,10 +10,10 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const appointmentId = params.id;
+    const { id: appointmentId } = await params;
 
     // Buscar o agendamento
     const appointment = await db.query.appointmentsTable.findFirst({
