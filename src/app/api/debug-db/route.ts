@@ -324,6 +324,16 @@ function extractHostname(url: string): string {
 function getErrorSuggestion(error: unknown): string {
   if (error instanceof Error) {
     if (error.message.includes("ENOTFOUND")) {
+      // Sugestão mais inteligente baseada no ambiente
+      if (process.env.NODE_ENV === "production") {
+        return (
+          "🔍 Sugestão: ENOTFOUND em produção pode indicar:\n" +
+          "1. Variável DATABASE_URL diferente entre local e produção\n" +
+          "2. Problema de DNS no provedor (Vercel/Netlify)\n" +
+          "3. Projeto Supabase restrito por região/firewall\n" +
+          "4. Verifique se as env vars da produção estão corretas"
+        );
+      }
       return "🔍 Sugestão: Verifique se o projeto Supabase está ativo e o hostname está correto. Projetos inativos podem ser pausados automaticamente.";
     }
     if (error.message.includes("ECONNREFUSED")) {
