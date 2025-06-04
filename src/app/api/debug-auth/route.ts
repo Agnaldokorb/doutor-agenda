@@ -4,8 +4,35 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
 
+// Função auxiliar para testar endpoints
+async function testEndpoint(url: string, options: RequestInit = {}) {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+    
+    return {
+      status: response.status,
+      ok: response.ok,
+      statusText: response.statusText,
+    };
+  } catch (error) {
+    return {
+      status: 0,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function GET() {
   try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    
     const debug = {
       timestamp: new Date().toISOString(),
       environment: {
@@ -29,6 +56,9 @@ export async function GET() {
           signInEmail: "pending",
           signUpEmail: "pending",
           session: "pending",
+          googleAuth: "pending",
+          signOut: "pending",
+          health: "pending",
         },
       },
     };
@@ -68,6 +98,70 @@ export async function GET() {
       );
     } catch (error) {
       debug.database.userCount = -1;
+    }
+
+    // Testar endpoints do BetterAuth
+    const authEndpoints = [
+      {
+        name: "signInEmail",
+        url: `${baseUrl}/api/auth/sign-in/email`,
+        method: "POST",
+        testData: { email: "test@example.com", password: "test123" },
+      },
+      {
+        name: "signUpEmail", 
+        url: `${baseUrl}/api/auth/sign-up/email`,
+        method: "POST",
+        testData: { email: "test@example.com", password: "test123", name: "Test User" },
+      },
+      {
+        name: "session",
+        url: `${baseUrl}/api/auth/session`,
+        method: "GET",
+      },
+      {
+        name: "googleAuth",
+        url: `${baseUrl}/api/auth/sign-in/google`,
+        method: "GET",
+      },
+      {
+        name: "signOut",
+        url: `${baseUrl}/api/auth/sign-out`,
+        method: "POST",
+      },
+      {
+        name: "health",
+        url: `${baseUrl}/api/health`,
+        method: "GET",
+      },
+    ];
+
+    // Testar cada endpoint
+    for (const endpoint of authEndpoints) {
+      try {
+        const result = await testEndpoint(endpoint.url, {
+          method: endpoint.method,
+          body: endpoint.testData ? JSON.stringify(endpoint.testData) : undefined,
+        });
+
+        if (result.error) {
+          debug.auth.endpoints[endpoint.name as keyof typeof debug.auth.endpoints] = 
+            `❌ connection failed: ${result.error}`;
+        } else if (result.status === 0) {
+          debug.auth.endpoints[endpoint.name as keyof typeof debug.auth.endpoints] = 
+            "❌ endpoint unreachable";
+        } else if (result.status >= 200 && result.status < 500) {
+          // Para endpoints de auth, códigos 4xx são esperados sem dados válidos
+          debug.auth.endpoints[endpoint.name as keyof typeof debug.auth.endpoints] = 
+            `✅ responding (${result.status})`;
+        } else {
+          debug.auth.endpoints[endpoint.name as keyof typeof debug.auth.endpoints] = 
+            `⚠️ server error (${result.status})`;
+        }
+      } catch (error) {
+        debug.auth.endpoints[endpoint.name as keyof typeof debug.auth.endpoints] = 
+          `❌ test failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
     }
 
     return NextResponse.json(debug);
