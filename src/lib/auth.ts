@@ -83,38 +83,63 @@ export const auth = betterAuth({
   plugins: [
     customSession(async ({ user, session }) => {
       try {
-        const clinics = await db.query.usersToClinicsTable.findMany({
-          where: eq(usersToClinicsTable.userId, user.id),
-          with: {
-            clinic: true,
-          },
+        // Timeout para evitar travamento da sessão
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session query timeout')), 5000);
         });
 
-        // Buscar informações completas do usuário incluindo o tipo
-        const fullUser = await db.query.usersTable.findFirst({
-          where: eq(schema.usersTable.id, user.id),
-        });
+        const sessionDataPromise = (async () => {
+          const clinics = await db.query.usersToClinicsTable.findMany({
+            where: eq(usersToClinicsTable.userId, user.id),
+            with: {
+              clinic: true,
+            },
+          });
 
-        // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
-        const clinic = clinics?.[0];
-        return {
-          user: {
-            ...user,
+          // Buscar informações completas do usuário incluindo o tipo
+          const fullUser = await db.query.usersTable.findFirst({
+            where: eq(schema.usersTable.id, user.id),
+          });
+
+          // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
+          const clinic = clinics?.[0];
+          
+          return {
             userType: fullUser?.userType || "admin",
             mustChangePassword: fullUser?.mustChangePassword || false,
             clinic: clinic?.clinicId ? clinic?.clinic : undefined,
-            // Dados LGPD
             privacyPolicyAccepted: fullUser?.privacyPolicyAccepted || false,
             privacyPolicyVersion: fullUser?.privacyPolicyVersion || "1.0",
+          };
+        })();
+
+        // Executar com timeout
+        const sessionData = await Promise.race([sessionDataPromise, timeoutPromise]);
+
+        return {
+          user: {
+            ...user,
+            ...(sessionData as any),
           },
           session,
         };
       } catch (error) {
         console.error(
           "❌ [AUTH SESSION] Erro ao buscar dados da sessão:",
-          error,
+          error instanceof Error ? error.message : error,
         );
-        // Retornar dados básicos em caso de erro
+        
+        // Log adicional para debug
+        if (error instanceof Error) {
+          if (error.message.includes('connect') || error.message.includes('connection')) {
+            console.error('🗄️ [AUTH SESSION] Database connection error in session');
+          }
+          if (error.message.includes('timeout')) {
+            console.error('⏱️ [AUTH SESSION] Timeout error in session');
+          }
+        }
+        
+        // Retornar dados básicos em caso de erro para não bloquear a autenticação
         return {
           user: {
             ...user,

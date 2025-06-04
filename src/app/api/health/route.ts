@@ -1,33 +1,83 @@
 import { NextResponse } from "next/server";
+import { db } from "@/db";
+
+interface DatabaseCheck {
+  status: "healthy" | "unhealthy" | "unknown";
+  responseTime: number;
+  error?: string;
+}
+
+interface EnvironmentCheck {
+  status: "healthy" | "unhealthy" | "unknown";
+  missing?: string[];
+}
 
 export async function GET() {
+  const startTime = Date.now();
+
+  const health = {
+    status: "healthy" as "healthy" | "unhealthy",
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: { status: "unknown", responseTime: 0 } as DatabaseCheck,
+      environment: { status: "unknown" } as EnvironmentCheck,
+    },
+    version: process.env.npm_package_version || "unknown",
+    environment: process.env.NODE_ENV,
+    responseTime: 0,
+  };
+
+  // Verificar banco de dados
   try {
-    const timestamp = new Date().toISOString();
-    const nodeEnv = process.env.NODE_ENV || "development";
-    
-    const healthData = {
-      status: "OK",
-      timestamp,
-      environment: nodeEnv,
-      url: process.env.NEXT_PUBLIC_APP_URL || "não configurada",
-      hasAuthSecret: !!process.env.AUTH_SECRET,
-      hasBetterAuthSecret: !!process.env.BETTER_AUTH_SECRET,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasResendApiKey: !!process.env.RESEND_API_KEY,
+    const dbStart = Date.now();
+    await db.execute("SELECT 1");
+    const dbTime = Date.now() - dbStart;
+
+    health.checks.database = {
+      status: "healthy",
+      responseTime: dbTime,
     };
-
-    console.log("🏥 Health check:", healthData);
-
-    return NextResponse.json(healthData, { status: 200 });
   } catch (error) {
-    console.error("❌ Health check error:", error);
-    return NextResponse.json(
-      { 
-        status: "ERROR", 
-        error: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    health.status = "unhealthy";
+    health.checks.database = {
+      status: "unhealthy",
+      responseTime: Date.now() - startTime,
+      error: error instanceof Error ? error.message : "Unknown database error",
+    };
   }
-} 
+
+  // Verificar variáveis de ambiente críticas
+  const requiredEnvVars = [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "NEXT_PUBLIC_APP_URL",
+  ];
+
+  const missingEnvVars = requiredEnvVars.filter(
+    (envVar) => !process.env[envVar],
+  );
+
+  if (missingEnvVars.length > 0) {
+    health.status = "unhealthy";
+    health.checks.environment = {
+      status: "unhealthy",
+      missing: missingEnvVars,
+    };
+  } else {
+    health.checks.environment = {
+      status: "healthy",
+    };
+  }
+
+  const totalTime = Date.now() - startTime;
+  health.responseTime = totalTime;
+
+  const statusCode = health.status === "healthy" ? 200 : 503;
+
+  return NextResponse.json(health, {
+    status: statusCode,
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+    },
+  });
+}
