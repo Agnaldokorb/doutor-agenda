@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { actionClient } from "@/lib/next-safe-action";
 import { db } from "@/db";
-import { usersTable } from "@/db/schema";
+import { usersTable, accountsTable } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -53,7 +53,21 @@ export const resetPassword = actionClient
       // Hash da nova senha
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // Atualizar senha e limpar token de recuperação
+      // Atualizar senha na tabela accounts usando Drizzle ORM
+      await db
+        .update(accountsTable)
+        .set({
+          password: hashedPassword,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(accountsTable.userId, userRecord.id),
+            eq(accountsTable.providerId, "credential"),
+          ),
+        );
+
+      // Limpar token de recuperação e atualizar flag
       await db
         .update(usersTable)
         .set({
@@ -63,21 +77,6 @@ export const resetPassword = actionClient
           updatedAt: new Date(),
         })
         .where(eq(usersTable.id, userRecord.id));
-
-      // Buscar account do usuário para atualizar senha
-      const accounts = await db.execute(`
-        SELECT id FROM accounts 
-        WHERE user_id = '${userRecord.id}' AND provider_id = 'credential'
-        LIMIT 1
-      `);
-
-      if (accounts.rows && accounts.rows.length > 0) {
-        await db.execute(`
-          UPDATE accounts 
-          SET password = '${hashedPassword}', updated_at = NOW() 
-          WHERE user_id = '${userRecord.id}' AND provider_id = 'credential'
-        `);
-      }
 
       console.log("✅ Senha redefinida com sucesso para:", userRecord.email);
 
