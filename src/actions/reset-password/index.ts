@@ -3,9 +3,9 @@
 import { z } from "zod";
 import { actionClient } from "@/lib/next-safe-action";
 import { db } from "@/db";
-import { usersTable, accountsTable } from "@/db/schema";
+import { usersTable } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import { auth } from "@/lib/auth";
 
 const resetPasswordSchema = z
   .object({
@@ -28,7 +28,7 @@ export const resetPassword = actionClient
   .schema(resetPasswordSchema)
   .action(async ({ parsedInput: { token, newPassword } }) => {
     try {
-      // Buscar usuário pelo token válido
+      // Primeiro validar se o token existe e é válido na nossa tabela
       const user = await db
         .select()
         .from(usersTable)
@@ -50,24 +50,52 @@ export const resetPassword = actionClient
 
       const userRecord = user[0];
 
-      // Hash da nova senha
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      // Usar a API nativa do BetterAuth para resetar a senha
+      // Baseado na documentação: https://www.better-auth.com/docs/authentication/email-password
+      try {
+        const resetResult = await auth.api.resetPassword({
+          body: {
+            token,
+            newPassword,
+          },
+        });
 
-      // Atualizar senha na tabela accounts usando Drizzle ORM
-      await db
-        .update(accountsTable)
-        .set({
-          password: hashedPassword,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(accountsTable.userId, userRecord.id),
-            eq(accountsTable.providerId, "credential"),
-          ),
+        if (!resetResult) {
+          throw new Error("Falha ao resetar senha via BetterAuth API");
+        }
+
+        console.log(
+          "✅ Senha redefinida com sucesso via BetterAuth para:",
+          userRecord.email,
+        );
+      } catch (betterAuthError) {
+        console.error(
+          "❌ Erro da API BetterAuth, tentando método manual:",
+          betterAuthError,
         );
 
-      // Limpar token de recuperação e atualizar flag
+        // Se a API falhar, usar método manual como fallback
+        const bcrypt = await import("bcryptjs");
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        const { accountsTable } = await import("@/db/schema");
+        await db
+          .update(accountsTable)
+          .set({
+            password: hashedPassword,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(accountsTable.userId, userRecord.id),
+              eq(accountsTable.providerId, "credential"),
+            ),
+          );
+
+        console.log("✅ Senha redefinida manualmente para:", userRecord.email);
+      }
+
+      // Limpar token de recuperação independente do método usado
       await db
         .update(usersTable)
         .set({
@@ -77,8 +105,6 @@ export const resetPassword = actionClient
           updatedAt: new Date(),
         })
         .where(eq(usersTable.id, userRecord.id));
-
-      console.log("✅ Senha redefinida com sucesso para:", userRecord.email);
 
       return {
         success: true,
