@@ -12,6 +12,7 @@ export async function GET() {
       DATABASE_URL_PREFIX: process.env.DATABASE_URL?.substring(0, 50) + "...",
       IS_SUPABASE: process.env.DATABASE_URL?.includes("supabase.co") || false,
       HAS_SSLMODE: process.env.DATABASE_URL?.includes("sslmode=") || false,
+      FULL_HOSTNAME: extractHostname(process.env.DATABASE_URL || ""),
     },
     pool: {
       totalCount: pool.totalCount,
@@ -26,6 +27,62 @@ export async function GET() {
       details?: any;
     }>,
   };
+
+  // Teste 0: DNS Resolution (novo)
+  try {
+    console.log("🗄️ [DEBUG DB] Teste 0: DNS Resolution...");
+    const start = Date.now();
+    const hostname = extractHostname(process.env.DATABASE_URL || "");
+
+    if (hostname) {
+      // Simulação de teste DNS usando fetch para um endpoint público
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        await fetch(`https://${hostname}`, {
+          method: "HEAD",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        const duration = Date.now() - start;
+
+        debugInfo.tests.push({
+          name: "dns_resolution",
+          status: "✅ success",
+          duration,
+          details: { hostname, message: "Host is reachable" },
+        });
+      } catch (fetchError) {
+        const duration = Date.now() - start;
+        const errorMessage =
+          fetchError instanceof Error ? fetchError.message : String(fetchError);
+
+        debugInfo.tests.push({
+          name: "dns_resolution",
+          status: "❌ failed",
+          duration,
+          error: errorMessage,
+          details: {
+            hostname,
+            suggestion: errorMessage.includes("ENOTFOUND")
+              ? "Hostname not found - check if Supabase project is active"
+              : "Connection issue - check network/firewall",
+          },
+        });
+      }
+    }
+
+    console.log("✅ [DEBUG DB] Teste 0: Concluído");
+  } catch (error) {
+    debugInfo.tests.push({
+      name: "dns_resolution",
+      status: "❌ failed",
+      duration: 0,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Teste 1: Conexão simples
   try {
@@ -54,6 +111,7 @@ export async function GET() {
         errorStack:
           error instanceof Error ? error.stack?.split("\n")[0] : undefined,
         errorCause: error instanceof Error ? error.cause : undefined,
+        suggestion: getErrorSuggestion(error),
       },
     });
 
@@ -95,6 +153,7 @@ export async function GET() {
           error instanceof Error
             ? error.stack?.split("\n").slice(0, 3)
             : undefined,
+        suggestion: getErrorSuggestion(error),
       },
     });
 
@@ -137,6 +196,7 @@ export async function GET() {
       error: error instanceof Error ? error.message : String(error),
       details: {
         errorName: error instanceof Error ? error.name : "Unknown",
+        suggestion: getErrorSuggestion(error),
       },
     });
 
@@ -174,6 +234,9 @@ export async function GET() {
       status: "❌ failed",
       duration,
       error: error instanceof Error ? error.message : String(error),
+      details: {
+        suggestion: getErrorSuggestion(error),
+      },
     });
 
     console.error("❌ [DEBUG DB] Teste 4: Falhou", error);
@@ -227,6 +290,7 @@ export async function GET() {
         details: {
           errorName: error instanceof Error ? error.name : "Unknown",
           errorCode: (error as any)?.code,
+          suggestion: getErrorSuggestion(error),
         },
       });
 
@@ -242,4 +306,38 @@ export async function GET() {
       "Cache-Control": "no-cache, no-store, must-revalidate",
     },
   });
+}
+
+// Função auxiliar para extrair hostname da URL
+function extractHostname(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname;
+  } catch {
+    // Fallback para URLs postgresql://
+    const match = url.match(/@([^:]+):/);
+    return match ? match[1] : "";
+  }
+}
+
+// Função auxiliar para sugestões de erro
+function getErrorSuggestion(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes("ENOTFOUND")) {
+      return "🔍 Sugestão: Verifique se o projeto Supabase está ativo e o hostname está correto. Projetos inativos podem ser pausados automaticamente.";
+    }
+    if (error.message.includes("ECONNREFUSED")) {
+      return "🔍 Sugestão: Servidor recusou a conexão. Verifique firewall e configurações de rede.";
+    }
+    if (error.message.includes("timeout")) {
+      return "🔍 Sugestão: Timeout de conexão. Tente aumentar os timeouts ou verifique a latência de rede.";
+    }
+    if (error.message.includes("authentication")) {
+      return "🔍 Sugestão: Problema de autenticação. Verifique usuário, senha e permissões do banco.";
+    }
+    if (error.message.includes("SSL")) {
+      return "🔍 Sugestão: Problema de SSL. Verifique as configurações SSL e certificados.";
+    }
+  }
+  return "🔍 Sugestão: Erro desconhecido. Verifique logs detalhados e configurações gerais.";
 }
