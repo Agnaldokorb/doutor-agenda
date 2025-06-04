@@ -1,13 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft,Loader2 } from "lucide-react";
-import { useAction } from "next-safe-action/hooks";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import React from "react";
 
-import { forgotPassword } from "@/actions/forgot-password";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +20,7 @@ import { FormControl, FormMessage } from "@/components/ui/form";
 import { FormItem, FormLabel } from "@/components/ui/form";
 import { Form, FormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 
 const forgotPasswordSchema = z.object({
   email: z
@@ -42,25 +42,33 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
     },
   });
 
-  const { execute, isExecuting } = useAction(forgotPassword, {
-    onSuccess: (data) => {
-      if (data?.data?.success) {
-        toast.success(data.data.message);
-        form.reset();
-      } else {
-        toast.error(data?.data?.message || "Erro ao enviar email");
-      }
-    },
-    onError: (error) => {
-      toast.error(
-        error?.error?.serverError ||
-          "Erro interno. Tente novamente mais tarde.",
-      );
-    },
-  });
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSubmit = async (values: z.infer<typeof forgotPasswordSchema>) => {
-    execute(values);
+    setIsLoading(true);
+
+    try {
+      // Usar a API client nativa do BetterAuth
+      const { data, error } = await authClient.forgetPassword({
+        email: values.email,
+        redirectTo: `${window.location.origin}/authentication/reset-password`,
+      });
+
+      if (error) {
+        toast.error("Erro ao enviar email de recuperação");
+        return;
+      }
+
+      toast.success(
+        "Se o email estiver cadastrado, você receberá as instruções para recuperar sua senha.",
+      );
+      form.reset();
+    } catch (error) {
+      console.error("Erro ao solicitar recuperação:", error);
+      toast.error("Erro interno. Tente novamente mais tarde.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -104,26 +112,16 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
             />
           </CardContent>
           <CardFooter>
-            <div className="w-full space-y-2">
-              <Button type="submit" className="w-full" disabled={isExecuting}>
-                {isExecuting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  "Enviar Instruções"
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                type="button"
-                onClick={onBackToLogin}
-              >
-                Voltar ao Login
-              </Button>
-            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Enviar Instruções"
+              )}
+            </Button>
           </CardFooter>
         </form>
       </Form>

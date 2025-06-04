@@ -85,26 +85,26 @@ export const auth = betterAuth({
       try {
         // Timeout para evitar travamento da sessão
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session query timeout')), 5000);
+          setTimeout(() => reject(new Error("Session query timeout")), 5000);
         });
 
         const sessionDataPromise = (async () => {
-        const clinics = await db.query.usersToClinicsTable.findMany({
-          where: eq(usersToClinicsTable.userId, user.id),
-          with: {
-            clinic: true,
-          },
-        });
+          const clinics = await db.query.usersToClinicsTable.findMany({
+            where: eq(usersToClinicsTable.userId, user.id),
+            with: {
+              clinic: true,
+            },
+          });
 
-        // Buscar informações completas do usuário incluindo o tipo
-        const fullUser = await db.query.usersTable.findFirst({
-          where: eq(schema.usersTable.id, user.id),
-        });
+          // Buscar informações completas do usuário incluindo o tipo
+          const fullUser = await db.query.usersTable.findFirst({
+            where: eq(schema.usersTable.id, user.id),
+          });
 
-        // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
-        const clinic = clinics?.[0];
-          
-        return {
+          // TODO: Ao adaptar para o usuário ter múltiplas clínicas, deve-se mudar esse código
+          const clinic = clinics?.[0];
+
+          return {
             userType: fullUser?.userType || "admin",
             mustChangePassword: fullUser?.mustChangePassword || false,
             clinic: clinic?.clinicId ? clinic?.clinic : undefined,
@@ -114,7 +114,10 @@ export const auth = betterAuth({
         })();
 
         // Executar com timeout
-        const sessionData = await Promise.race([sessionDataPromise, timeoutPromise]);
+        const sessionData = await Promise.race([
+          sessionDataPromise,
+          timeoutPromise,
+        ]);
 
         return {
           user: {
@@ -128,17 +131,22 @@ export const auth = betterAuth({
           "❌ [AUTH SESSION] Erro ao buscar dados da sessão:",
           error instanceof Error ? error.message : error,
         );
-        
+
         // Log adicional para debug
         if (error instanceof Error) {
-          if (error.message.includes('connect') || error.message.includes('connection')) {
-            console.error('🗄️ [AUTH SESSION] Database connection error in session');
+          if (
+            error.message.includes("connect") ||
+            error.message.includes("connection")
+          ) {
+            console.error(
+              "🗄️ [AUTH SESSION] Database connection error in session",
+            );
           }
-          if (error.message.includes('timeout')) {
-            console.error('⏱️ [AUTH SESSION] Timeout error in session');
+          if (error.message.includes("timeout")) {
+            console.error("⏱️ [AUTH SESSION] Timeout error in session");
           }
         }
-        
+
         // Retornar dados básicos em caso de erro para não bloquear a autenticação
         return {
           user: {
@@ -178,13 +186,45 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
-    sendResetPassword: async ({ user, url }: { user: any; url: string }) => {
+    sendResetPassword: async ({
+      user,
+      url,
+      token,
+    }: {
+      user: any;
+      url: string;
+      token: string;
+    }) => {
       // Log de auditoria LGPD para tentativa de reset de senha
       console.log(
         `🔐 [AUDIT LGPD] Password reset requested for user: ${user.email} at ${new Date().toISOString()}`,
       );
-      // Aqui você pode implementar o envio de email
-      // TODO: Implementar envio de email de reset
+
+      // Usar nosso serviço de email para enviar o reset
+      const { emailService } = await import("@/lib/email-service");
+
+      try {
+        const emailSent = await emailService.sendPasswordReset({
+          userEmail: user.email,
+          userName: user.name || "Usuário",
+          resetUrl: url, // Usar a URL gerada pelo BetterAuth
+          expiresIn: "1 hora",
+        });
+
+        if (!emailSent) {
+          console.error(
+            "❌ Falha ao enviar email de recuperação via BetterAuth para:",
+            user.email,
+          );
+        } else {
+          console.log(
+            "✅ Email de recuperação enviado via BetterAuth para:",
+            user.email,
+          );
+        }
+      } catch (error) {
+        console.error("❌ Erro ao enviar email via BetterAuth:", error);
+      }
     },
     sendVerificationEmail: async ({
       user,
