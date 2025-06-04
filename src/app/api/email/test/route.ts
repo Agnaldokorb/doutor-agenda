@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
-import { emailService } from "@/lib/email-service";
+import { emailService } from "@/lib/email-service-resend";
 import {
   createAppointmentCancellationTemplate,
   createAppointmentConfirmationTemplate,
@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!session?.user.clinic?.id) {
+      return NextResponse.json(
+        { error: "Clínica não encontrada" },
+        { status: 400 },
+      );
     }
 
     const body = await request.json();
@@ -58,28 +65,38 @@ export async function POST(request: NextRequest) {
       confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
     };
 
+    const clinicId = session.user.clinic.id;
     let success = false;
     let template: EmailTemplate | null = null;
 
     switch (type) {
       case "confirmation":
         template = createAppointmentConfirmationTemplate(testData);
-        success = await emailService.sendAppointmentConfirmation(testData);
+        success = await emailService.sendAppointmentConfirmation(
+          testData,
+          clinicId,
+        );
         break;
 
       case "reminder":
         template = createAppointmentReminderTemplate(testData);
-        success = await emailService.sendAppointmentReminder(testData);
+        success = await emailService.sendAppointmentReminder(
+          testData,
+          clinicId,
+        );
         break;
 
       case "cancellation":
         template = createAppointmentCancellationTemplate(testData);
-        success = await emailService.sendAppointmentCancellation(testData);
+        success = await emailService.sendAppointmentCancellation(
+          testData,
+          clinicId,
+        );
         break;
 
       case "update":
         template = createAppointmentUpdateTemplate(testData);
-        success = await emailService.sendAppointmentUpdate(testData);
+        success = await emailService.sendAppointmentUpdate(testData, clinicId);
         break;
 
       case "connection":
@@ -87,8 +104,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success,
           message: success
-            ? "Teste de conexão bem-sucedido!"
-            : "Falha no teste de conexão",
+            ? "Teste de conexão Resend bem-sucedido!"
+            : "Falha no teste de conexão Resend",
           timestamp: new Date().toISOString(),
         });
 
@@ -105,8 +122,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success,
       message: success
-        ? `Email de teste '${type}' enviado com sucesso!`
-        : `Falha ao enviar email de teste '${type}'`,
+        ? `Email de teste '${type}' enviado com sucesso via Resend!`
+        : `Falha ao enviar email de teste '${type}' via Resend`,
       type,
       email,
       subject: template?.subject,
@@ -143,7 +160,7 @@ export async function GET() {
 
     return NextResponse.json({
       status: "ok",
-      message: "API de teste de email disponível",
+      message: "API de teste de email Resend disponível",
       availableTypes: [
         {
           type: "confirmation",
@@ -163,7 +180,7 @@ export async function GET() {
         },
         {
           type: "connection",
-          description: "Teste de conexão com SendGrid",
+          description: "Teste de conexão Resend",
         },
       ],
       usage: {
@@ -177,17 +194,12 @@ export async function GET() {
           email: "test@example.com",
         },
       },
-      sendgridConfigured: !!process.env.SENDGRID_API_KEY,
-      currentUser: session.user.name,
-      timestamp: new Date().toISOString(),
+      resendConfigured: !!process.env.RESEND_API_KEY,
     });
   } catch (error) {
+    console.error("❌ Erro na API de teste:", error);
     return NextResponse.json(
-      {
-        status: "error",
-        message: "Erro ao obter informações da API",
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-      },
+      { error: "Erro interno no servidor" },
       { status: 500 },
     );
   }

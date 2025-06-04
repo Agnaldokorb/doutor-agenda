@@ -110,15 +110,18 @@ export const upsertAppointment = actionClient
         try {
           console.log("📧 Enviando email de confirmação...");
 
-          await emailService.sendAppointmentConfirmation({
-            patientName: appointmentData.patient.name,
-            doctorName: appointmentData.doctor.name,
-            doctorSpecialty: appointmentData.doctor.specialty,
-            appointmentDate: appointmentData.date,
-            patientEmail: appointmentData.patient.email,
-            price: appointmentData.doctor.appointmentPriceInCents,
-            confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
-          });
+          await emailService.sendAppointmentConfirmation(
+            {
+              patientName: appointmentData.patient.name,
+              doctorName: appointmentData.doctor.name,
+              doctorSpecialty: appointmentData.doctor.specialty,
+              appointmentDate: appointmentData.date,
+              patientEmail: appointmentData.patient.email,
+              price: appointmentData.doctor.appointmentPriceInCents,
+              confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
+            },
+            session.user.clinic.id,
+          );
 
           console.log("✅ Email de confirmação enviado com sucesso!");
         } catch (error) {
@@ -129,15 +132,18 @@ export const upsertAppointment = actionClient
         try {
           console.log("📧 Enviando email de reagendamento...");
 
-          await emailService.sendAppointmentUpdate({
-            patientName: appointmentData.patient.name,
-            doctorName: appointmentData.doctor.name,
-            doctorSpecialty: appointmentData.doctor.specialty,
-            appointmentDate: appointmentData.date,
-            patientEmail: appointmentData.patient.email,
-            price: appointmentData.doctor.appointmentPriceInCents,
-            confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
-          });
+          await emailService.sendAppointmentUpdate(
+            {
+              patientName: appointmentData.patient.name,
+              doctorName: appointmentData.doctor.name,
+              doctorSpecialty: appointmentData.doctor.specialty,
+              appointmentDate: appointmentData.date,
+              patientEmail: appointmentData.patient.email,
+              price: appointmentData.doctor.appointmentPriceInCents,
+              confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
+            },
+            session.user.clinic.id,
+          );
 
           console.log("✅ Email de reagendamento enviado com sucesso!");
         } catch (error) {

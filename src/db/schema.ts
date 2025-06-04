@@ -133,14 +133,17 @@ export const usersToClinicsTableRelations = relations(
   }),
 );
 
-export const clinicsTableRelations = relations(clinicsTable, ({ many }) => ({
-  doctors: many(doctorsTable),
-  patients: many(patientsTable),
-  appointments: many(appointmentsTable),
-  usersToClinics: many(usersToClinicsTable),
-  medicalRecords: many(medicalRecordsTable),
-  healthInsurancePlans: many(healthInsurancePlansTable),
-}));
+export const clinicsTableRelations = relations(
+  clinicsTable,
+  ({ many, one }) => ({
+    doctors: many(doctorsTable),
+    patients: many(patientsTable),
+    appointments: many(appointmentsTable),
+    usersToClinics: many(usersToClinicsTable),
+    medicalRecords: many(medicalRecordsTable),
+    healthInsurancePlans: many(healthInsurancePlansTable),
+  }),
+);
 
 export const doctorsTable = pgTable("doctors", {
   id: uuid("id").defaultRandom().primaryKey(),

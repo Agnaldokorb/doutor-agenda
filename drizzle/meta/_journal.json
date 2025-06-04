@@ -113,6 +113,20 @@
       "when": 1748923044464,
       "tag": "0015_married_norman_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1748984824142,
+      "tag": "0016_green_shinobi_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1748997863398,
+      "tag": "0017_curvy_katie_power",
+      "breakpoints": true
     }
   ]
 }

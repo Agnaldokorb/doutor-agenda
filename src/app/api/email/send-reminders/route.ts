@@ -80,15 +80,18 @@ export async function POST(request: NextRequest) {
           `📧 Processando lembrete para: ${appointment.patient.name}`,
         );
 
-        const success = await emailService.sendAppointmentReminder({
-          patientName: appointment.patient.name,
-          doctorName: appointment.doctor.name,
-          doctorSpecialty: appointment.doctor.specialty,
-          appointmentDate: appointment.date,
-          patientEmail: appointment.patient.email,
-          price: appointment.doctor.appointmentPriceInCents,
-          confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
-        });
+        const success = await emailService.sendAppointmentReminder(
+          {
+            patientName: appointment.patient.name,
+            doctorName: appointment.doctor.name,
+            doctorSpecialty: appointment.doctor.specialty,
+            appointmentDate: appointment.date,
+            patientEmail: appointment.patient.email,
+            price: appointment.doctor.appointmentPriceInCents,
+            confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/appointments`,
+          },
+          appointment.clinicId,
+        );
 
         if (success) {
           emailsSent++;
@@ -177,7 +180,11 @@ export async function GET() {
       message: "API de lembretes funcionando",
       nextReminderDate: tomorrow.format("DD/MM/YYYY"),
       appointmentsScheduled: count,
-      sendgridConfigured: !!process.env.SENDGRID_API_KEY,
+      smtpConfigured: !!(
+        process.env.SMTP_HOST &&
+        process.env.SMTP_USER &&
+        process.env.SMTP_PASS
+      ),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
