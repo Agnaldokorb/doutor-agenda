@@ -47,6 +47,7 @@ export const upsertAppointment = actionClient
 
     // Verificar se é criação ou edição
     const isEdit = !!parsedInput.id;
+    console.log("🔍 DEBUG - isEdit:", isEdit, "ID:", parsedInput.id);
 
     try {
       const result = await db
@@ -158,18 +159,25 @@ export const upsertAppointment = actionClient
       }
 
       // Enviar webhook para n8n (apenas para novos agendamentos)
+      console.log("🔍 DEBUG - Verificando webhook. isEdit:", isEdit);
       if (!isEdit) {
         try {
+          console.log("📡 DEBUG - Preparando webhook para n8n...");
           const webhookData = prepareAppointmentWebhookData(
             appointmentData,
             "agendado",
             process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
           );
+          console.log("📡 DEBUG - Dados do webhook:", webhookData);
+          console.log("📡 DEBUG - Enviando webhook...");
           await sendAppointmentWebhook(webhookData);
+          console.log("✅ DEBUG - Webhook enviado com sucesso!");
         } catch (error) {
           console.error("❌ Erro ao enviar webhook n8n:", error);
           // Não falhar o agendamento por causa do webhook
         }
+      } else {
+        console.log("⏭️ DEBUG - Pulando webhook (é uma edição)");
       }
 
       revalidatePath("/appointments");

@@ -23,16 +23,15 @@ export async function sendAppointmentWebhook(data: AppointmentWebhookData) {
   const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
   if (!webhookUrl) {
-    console.warn("⚠️ N8N_WEBHOOK_URL não está configurada no ambiente");
+    console.warn("⚠️ N8N_WEBHOOK_URL não está configurada");
     return;
   }
 
   try {
     console.log("📡 Enviando webhook para n8n:", {
+      url: webhookUrl,
       status: data.status,
       appointmentId: data.appointmentId,
-      patientName: data.patientName,
-      doctorName: data.doctorName,
     });
 
     const response = await fetch(webhookUrl, {
@@ -42,35 +41,41 @@ export async function sendAppointmentWebhook(data: AppointmentWebhookData) {
       },
       body: JSON.stringify({
         event: "appointment_status_change",
+        data,
         timestamp: new Date().toISOString(),
-        data: {
-          ...data,
-          // Formatação adicional para facilitar o uso no n8n
-          priceFormatted: `R$ ${(data.price / 100).toFixed(2).replace(".", ",")}`,
-          appointmentDateTime: `${data.appointmentDate} ${data.appointmentTime}`,
-        },
       }),
     });
 
-    if (response.ok) {
-      console.log("✅ Webhook enviado com sucesso para n8n");
-    } else {
+    if (!response.ok) {
       const errorText = await response.text();
       console.error("❌ Erro na resposta do webhook n8n:", {
         status: response.status,
         statusText: response.statusText,
         body: errorText,
       });
+
+      // Se for 404, significa que o workflow não está ativo
+      if (response.status === 404) {
+        console.warn(
+          "⚠️ Webhook n8n retornou 404 - verifique se o workflow está ATIVO no n8n",
+        );
+      }
+
+      return;
     }
+
+    const responseData = await response.text();
+    console.log("✅ Webhook n8n enviado com sucesso:", {
+      status: response.status,
+      response: responseData,
+    });
   } catch (error) {
-    console.error("❌ Erro ao enviar webhook para n8n:", error);
+    console.error("❌ Erro ao enviar webhook n8n:", error);
   }
 }
 
 /**
- * Prepara os dados do agendamento para envio via webhook
- * @param appointment Dados completos do agendamento
- * @param status Status do agendamento
+ * Prepara os dados do agendamento para envio ao webhook
  */
 export function prepareAppointmentWebhookData(
   appointment: {
@@ -79,25 +84,13 @@ export function prepareAppointmentWebhookData(
     appointmentPriceInCents: number;
     patient: { name: string };
     doctor: { name: string };
-    clinic?: { name: string; address?: string | null } | null;
+    clinic?: { name: string; address?: string | null };
   },
-  status: AppointmentWebhookData["status"],
-  baseUrl?: string,
+  status: "agendado" | "confirmado" | "cancelado" | "pago",
+  baseUrl: string,
 ): AppointmentWebhookData {
-  // Converter a data UTC para UTC-3 (São Paulo)
-  const localDateTime = convertUTCToUTCMinus3(appointment.date);
-
-  // Separar data e hora
-  const appointmentDate = dayjs(localDateTime).format("DD/MM/YYYY");
-  const appointmentTime = dayjs(localDateTime).format("HH:mm");
-
-  // URLs para confirmação e cancelamento
-  const confirmUrl = baseUrl
-    ? `${baseUrl}/api/appointments/${appointment.id}/confirm`
-    : undefined;
-  const cancelUrl = baseUrl
-    ? `${baseUrl}/api/appointments/${appointment.id}/cancel`
-    : undefined;
+  // Converter UTC para UTC-3 para exibição
+  const localDate = convertUTCToUTCMinus3(appointment.date);
 
   return {
     status,
@@ -107,9 +100,9 @@ export function prepareAppointmentWebhookData(
     clinicName: appointment.clinic?.name || "Clínica",
     clinicAddress: appointment.clinic?.address || "Endereço não informado",
     price: appointment.appointmentPriceInCents,
-    appointmentDate,
-    appointmentTime,
-    confirmUrl,
-    cancelUrl,
+    appointmentDate: dayjs(localDate).format("DD/MM/YYYY"),
+    appointmentTime: dayjs(localDate).format("HH:mm"),
+    confirmUrl: `${baseUrl}/api/appointments/${appointment.id}/confirm`,
+    cancelUrl: `${baseUrl}/api/appointments/${appointment.id}/cancel`,
   };
 }

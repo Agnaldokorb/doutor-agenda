@@ -517,13 +517,18 @@ const UpsertAppointmentForm = ({
     },
   });
 
+  // Função estável para buscar planos
+  const fetchPlans = useCallback(() => {
+    console.log("🔍 Appointment Form - Modal aberto, buscando planos...");
+    getPlansAction.execute();
+  }, [getPlansAction.execute]);
+
   // Buscar planos de saúde quando o formulário abrir
   useEffect(() => {
     if (isOpen) {
-      console.log("🔍 Appointment Form - Modal aberto, buscando planos...");
-      getPlansAction.execute();
+      fetchPlans();
     }
-  }, [isOpen, getPlansAction]);
+  }, [isOpen, fetchPlans]);
 
   const upsertAppointmentAction = useAction(upsertAppointment, {
     onSuccess: () => {
